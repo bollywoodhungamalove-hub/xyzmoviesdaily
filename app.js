@@ -1,11 +1,11 @@
 // ============================================
 // XYZMOVIEDAILY
-// Optimized Movie Loading
+// Optimized Movie Loading + Load More
 // ============================================
 
 const CINEMETA_API = "https://v3-cinemeta.strem.io";
 
-const INITIAL_MOVIES = 24;
+const MOVIES_PER_LOAD = 24;
 const BATCH_SIZE = 8;
 
 const metadataCache = new Map();
@@ -13,9 +13,11 @@ const metadataCache = new Map();
 let allMovies = [];
 let loadedMovies = [];
 
+let currentMovieIndex = 0;
+
 
 // ============================================
-// DOM
+// DOM HELPER
 // ============================================
 
 function $(id) {
@@ -55,24 +57,13 @@ async function initializeSite() {
 
     setupNavigation();
 
+    setupLoadMore();
+
     buildMovieList();
 
     showLoading(true);
 
-    /*
-     * Load only the first batch initially.
-     * This keeps the website fast.
-     */
-
-    const firstBatch =
-        allMovies.slice(0, INITIAL_MOVIES);
-
-    const movies =
-        await loadBatch(firstBatch);
-
-    loadedMovies.push(...movies);
-
-    renderAllSections();
+    await loadNextMovies();
 
     showLoading(false);
 
@@ -127,9 +118,7 @@ function buildMovieList() {
     });
 
 
-    /*
-     * Remove duplicate IMDb IDs.
-     */
+    // Remove duplicate IMDb IDs
 
     const unique =
         new Map();
@@ -154,7 +143,7 @@ function buildMovieList() {
 
 
     console.log(
-        "Total local movies:",
+        "Total movies in database:",
         allMovies.length
     );
 
@@ -162,10 +151,60 @@ function buildMovieList() {
 
 
 // ============================================
-// LOAD MOVIE BATCH
+// LOAD NEXT 24 MOVIES
 // ============================================
 
-async function loadBatch(batch) {
+async function loadNextMovies() {
+
+    if (
+        currentMovieIndex >=
+        allMovies.length
+    ) {
+
+        updateLoadMoreButton();
+
+        return;
+
+    }
+
+
+    const nextMovies =
+        allMovies.slice(
+            currentMovieIndex,
+            currentMovieIndex +
+                MOVIES_PER_LOAD
+        );
+
+
+    currentMovieIndex +=
+        nextMovies.length;
+
+
+    const movies =
+        await loadBatch(
+            nextMovies
+        );
+
+
+    loadedMovies.push(
+        ...movies
+    );
+
+
+    renderAllSections();
+
+    updateLoadMoreButton();
+
+}
+
+
+// ============================================
+// LOAD BATCH
+// ============================================
+
+async function loadBatch(
+    batch
+) {
 
     if (!batch.length) {
         return [];
@@ -192,7 +231,9 @@ async function loadBatch(batch) {
             await Promise.all(
                 smallBatch.map(
                     movie =>
-                        fetchMovieMetadata(movie)
+                        fetchMovieMetadata(
+                            movie
+                        )
                 )
             );
 
@@ -200,7 +241,11 @@ async function loadBatch(batch) {
         response.forEach(movie => {
 
             if (movie) {
-                results.push(movie);
+
+                results.push(
+                    movie
+                );
+
             }
 
         });
@@ -217,7 +262,9 @@ async function loadBatch(batch) {
 // CINEMETA METADATA
 // ============================================
 
-async function fetchMovieMetadata(movie) {
+async function fetchMovieMetadata(
+    movie
+) {
 
     if (
         metadataCache.has(
@@ -333,8 +380,9 @@ async function fetchMovieMetadata(movie) {
     catch (error) {
 
         console.warn(
-            "Cinemeta request failed:",
-            movie.id
+            "Cinemeta error:",
+            movie.id,
+            error
         );
 
 
@@ -351,7 +399,9 @@ async function fetchMovieMetadata(movie) {
 // FALLBACK
 // ============================================
 
-function createFallbackMovie(movie) {
+function createFallbackMovie(
+    movie
+) {
 
     const result = {
 
@@ -433,7 +483,7 @@ function getYear(
 
 
 // ============================================
-// RENDER ALL SECTIONS
+// RENDER EVERYTHING
 // ============================================
 
 function renderAllSections() {
@@ -482,18 +532,13 @@ function renderAllSections() {
 
     renderHindi();
 
-
     renderTrending();
-
 
     renderFeatured();
 
-
     renderNewMovies();
 
-
     renderAllMovies();
-
 
     renderGenres();
 
@@ -522,7 +567,8 @@ function renderCategory(
     const movies =
         loadedMovies.filter(
             movie =>
-                movie.category === category
+                movie.category ===
+                category
         );
 
 
@@ -541,18 +587,15 @@ function renderCategory(
     grid.innerHTML = "";
 
 
-    movies
-        .slice(
-            0,
-            INITIAL_MOVIES
-        )
-        .forEach(movie => {
+    movies.forEach(movie => {
 
-            grid.appendChild(
-                createMovieCard(movie)
-            );
+        grid.appendChild(
+            createMovieCard(
+                movie
+            )
+        );
 
-        });
+    });
 
 }
 
@@ -595,18 +638,15 @@ function renderHindi() {
     grid.innerHTML = "";
 
 
-    movies
-        .slice(
-            0,
-            INITIAL_MOVIES
-        )
-        .forEach(movie => {
+    movies.forEach(movie => {
 
-            grid.appendChild(
-                createMovieCard(movie)
-            );
+        grid.appendChild(
+            createMovieCard(
+                movie
+            )
+        );
 
-        });
+    });
 
 }
 
@@ -653,12 +693,14 @@ function renderTrending() {
     movies
         .slice(
             0,
-            INITIAL_MOVIES
+            24
         )
         .forEach(movie => {
 
             grid.appendChild(
-                createMovieCard(movie)
+                createMovieCard(
+                    movie
+                )
             );
 
         });
@@ -708,12 +750,14 @@ function renderFeatured() {
     movies
         .slice(
             0,
-            INITIAL_MOVIES
+            24
         )
         .forEach(movie => {
 
             grid.appendChild(
-                createMovieCard(movie)
+                createMovieCard(
+                    movie
+                )
             );
 
         });
@@ -763,12 +807,14 @@ function renderNewMovies() {
     movies
         .slice(
             0,
-            INITIAL_MOVIES
+            24
         )
         .forEach(movie => {
 
             grid.appendChild(
-                createMovieCard(movie)
+                createMovieCard(
+                    movie
+                )
             );
 
         });
@@ -806,18 +852,15 @@ function renderAllMovies() {
     grid.innerHTML = "";
 
 
-    loadedMovies
-        .slice(
-            0,
-            48
-        )
-        .forEach(movie => {
+    loadedMovies.forEach(movie => {
 
-            grid.appendChild(
-                createMovieCard(movie)
-            );
+        grid.appendChild(
+            createMovieCard(
+                movie
+            )
+        );
 
-        });
+    });
 
 }
 
@@ -945,19 +988,17 @@ function renderGenres() {
             movies
                 .slice(
                     0,
-                    INITIAL_MOVIES
+                    24
                 )
-                .forEach(
-                    movie => {
+                .forEach(movie => {
 
-                        grid.appendChild(
-                            createMovieCard(
-                                movie
-                            )
-                        );
+                    grid.appendChild(
+                        createMovieCard(
+                            movie
+                        )
+                    );
 
-                    }
-                );
+                });
 
         }
     );
@@ -969,7 +1010,9 @@ function renderGenres() {
 // MOVIE CARD
 // ============================================
 
-function createMovieCard(movie) {
+function createMovieCard(
+    movie
+) {
 
     const card =
         document.createElement(
@@ -979,6 +1022,9 @@ function createMovieCard(movie) {
 
     card.className =
         "movie-card";
+
+
+    card.tabIndex = 0;
 
 
     const poster =
@@ -1014,6 +1060,7 @@ function createMovieCard(movie) {
         image.onerror = () => {
 
             image.remove();
+
 
             poster.classList.add(
                 "poster-fallback"
@@ -1134,9 +1181,27 @@ function createMovieCard(movie) {
 
     card.addEventListener(
         "click",
-        () => openMovie(
-            movie
-        )
+        () =>
+            openMovie(movie)
+    );
+
+
+    card.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter" ||
+                event.key === " "
+            ) {
+
+                event.preventDefault();
+
+                openMovie(movie);
+
+            }
+
+        }
     );
 
 
@@ -1149,15 +1214,18 @@ function createMovieCard(movie) {
 // OPEN TRAILER
 // ============================================
 
-function openMovie(movie) {
+function openMovie(
+    movie
+) {
 
     /*
-     * Cinemeta may provide the YouTube trailer
-     * directly.
+     * Use Cinemeta trailer when available.
      */
 
     if (
-        movie.trailers &&
+        Array.isArray(
+            movie.trailers
+        ) &&
         movie.trailers.length
     ) {
 
@@ -1193,8 +1261,7 @@ function openMovie(movie) {
 
 
     /*
-     * Fallback:
-     * Search YouTube.
+     * YouTube fallback.
      */
 
     const query =
@@ -1213,6 +1280,122 @@ function openMovie(movie) {
         "_blank",
         "noopener,noreferrer"
     );
+
+}
+
+
+// ============================================
+// LOAD MORE BUTTON
+// ============================================
+
+function setupLoadMore() {
+
+    const button =
+        $("loadMoreButton");
+
+
+    if (!button) {
+        return;
+    }
+
+
+    button.addEventListener(
+        "click",
+        async () => {
+
+            button.disabled =
+                true;
+
+
+            button.textContent =
+                "Loading...";
+
+
+            await loadNextMovies();
+
+
+            button.disabled =
+                false;
+
+
+            updateLoadMoreButton();
+
+        }
+    );
+
+
+    updateLoadMoreButton();
+
+}
+
+
+// ============================================
+// UPDATE LOAD MORE BUTTON
+// ============================================
+
+function updateLoadMoreButton() {
+
+    const container =
+        $("loadMoreContainer");
+
+
+    const button =
+        $("loadMoreButton");
+
+
+    if (!button) {
+        return;
+    }
+
+
+    if (
+        currentMovieIndex >=
+        allMovies.length
+    ) {
+
+        button.style.display =
+            "none";
+
+
+        if (container) {
+
+            container.style.display =
+                "none";
+
+        }
+
+
+        return;
+
+    }
+
+
+    button.style.display =
+        "inline-flex";
+
+
+    if (container) {
+
+        container.style.display =
+            "flex";
+
+    }
+
+
+    const remaining =
+        allMovies.length -
+        currentMovieIndex;
+
+
+    const amount =
+        Math.min(
+            MOVIES_PER_LOAD,
+            remaining
+        );
+
+
+    button.textContent =
+        `Load More Movies (${amount})`;
 
 }
 
@@ -1298,7 +1481,9 @@ function setupSearch() {
 // SEARCH
 // ============================================
 
-function searchMovies(query) {
+async function searchMovies(
+    query
+) {
 
     const section =
         $("searchResultsSection");
@@ -1321,6 +1506,10 @@ function searchMovies(query) {
     }
 
 
+    /*
+     * First search the local database.
+     */
+
     const results =
         allMovies.filter(
             movie => {
@@ -1328,7 +1517,8 @@ function searchMovies(query) {
                 const title =
                     String(
                         movie.title
-                    ).toLowerCase();
+                    )
+                        .toLowerCase();
 
 
                 return title.includes(
@@ -1337,52 +1527,6 @@ function searchMovies(query) {
 
             }
         );
-
-
-    /*
-     * Search results may contain movies
-     * whose metadata has not been loaded yet.
-     */
-
-    const loadedIDs =
-        new Set(
-            loadedMovies.map(
-                movie => movie.id
-            )
-        );
-
-
-    const unloaded =
-        results.filter(
-            movie =>
-                !loadedIDs.has(
-                    movie.id
-                )
-        );
-
-
-    if (unloaded.length) {
-
-        loadBatch(
-            unloaded.slice(
-                0,
-                24
-            )
-        ).then(
-            newMovies => {
-
-                loadedMovies.push(
-                    ...newMovies
-                );
-
-                searchMovies(
-                    query
-                );
-
-            }
-        );
-
-    }
 
 
     section.style.display =
@@ -1396,6 +1540,50 @@ function searchMovies(query) {
 
         count.textContent =
             results.length;
+
+    }
+
+
+    /*
+     * Find which search results
+     * already have metadata.
+     */
+
+    const loadedIDs =
+        new Set(
+            loadedMovies.map(
+                movie => movie.id
+            )
+        );
+
+
+    const missing =
+        results.filter(
+            movie =>
+                !loadedIDs.has(
+                    movie.id
+                )
+        );
+
+
+    /*
+     * Load missing search results.
+     */
+
+    if (missing.length) {
+
+        const newMovies =
+            await loadBatch(
+                missing.slice(
+                    0,
+                    24
+                )
+            );
+
+
+        loadedMovies.push(
+            ...newMovies
+        );
 
     }
 
@@ -1440,17 +1628,21 @@ function searchMovies(query) {
             0,
             60
         )
-        .forEach(
-            movie => {
+        .forEach(movie => {
 
-                grid.appendChild(
-                    createMovieCard(
-                        movie
-                    )
-                );
+            grid.appendChild(
+                createMovieCard(
+                    movie
+                )
+            );
 
-            }
-        );
+        });
+
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
 
 }
 
