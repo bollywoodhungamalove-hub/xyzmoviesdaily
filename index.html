@@ -3,25 +3,21 @@
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <meta
         name="description"
-        content="XYZMOVIEDAILY - Trending movies, latest movies and official trailers."
+        content="XYZMOVIEDAILY - Discover popular, new and featured movies."
     >
 
-    <title>XYZMOVIEDAILY - Trending Movies</title>
+    <title>XYZMOVIEDAILY - Movies</title>
 
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-    <!-- ================= HEADER ================= -->
-
+    <!-- HEADER -->
     <header class="site-header">
 
         <div class="header-container">
@@ -32,7 +28,8 @@
 
             <nav class="navigation">
                 <a href="#trending">Trending</a>
-                <a href="#movies">Movies</a>
+                <a href="#featured">Featured</a>
+                <a href="#newMovies">New Movies</a>
             </nav>
 
         </div>
@@ -40,22 +37,23 @@
     </header>
 
 
-    <!-- ================= HERO ================= -->
-
+    <!-- HERO -->
     <section class="hero">
 
         <div class="hero-content">
 
-            <p class="hero-small-title">
-                WELCOME TO
+            <p class="hero-label">
+                YOUR DAILY MOVIE DESTINATION
             </p>
 
             <h1>
-                XYZMOVIEDAILY
+                Discover Your<br>
+                Next Movie
             </h1>
 
             <p class="hero-description">
-                Discover popular movies and find their official trailers.
+                Explore popular, featured and new movies.
+                Click any movie to find its official trailer.
             </p>
 
             <a
@@ -70,15 +68,16 @@
     </section>
 
 
-    <!-- ================= MAIN ================= -->
+    <!-- SEARCH -->
+    <section class="search-section">
 
-    <main>
+        <div class="search-container">
 
-        <!-- SEARCH -->
+            <div class="search-box">
 
-        <section class="search-section">
-
-            <div class="search-container">
+                <span class="search-icon">
+                    🔎
+                </span>
 
                 <input
                     type="search"
@@ -96,90 +95,91 @@
 
             </div>
 
-        </section>
+        </div>
+
+    </section>
 
 
-        <!-- TRENDING -->
+    <main>
 
+
+        <!-- GLOBAL LOADING -->
+        <div
+            id="loading"
+            class="loading"
+        >
+
+            <div class="spinner"></div>
+
+            <p>
+                Loading movies...
+            </p>
+
+        </div>
+
+
+        <!-- ERROR -->
+        <div
+            id="errorBox"
+            class="error-box"
+            style="display:none;"
+        >
+
+            <h3>
+                Movie catalog could not be loaded
+            </h3>
+
+            <p id="errorText">
+                Please try again.
+            </p>
+
+            <button
+                id="retryButton"
+                type="button"
+            >
+                Try Again
+            </button>
+
+        </div>
+
+
+        <!-- SEARCH RESULTS -->
         <section
+            id="searchResultsSection"
             class="movie-section"
-            id="trending"
+            style="display:none;"
         >
 
             <div class="section-heading">
 
                 <div>
                     <p class="section-label">
-                        DISCOVER
+                        SEARCH
                     </p>
 
                     <h2>
-                        Trending Movies
+                        Search Results
                     </h2>
                 </div>
 
                 <span
-                    id="movieCount"
+                    id="searchCount"
                     class="movie-count"
                 >
-                    Loading...
+                    0 movies
                 </span>
 
             </div>
 
-
-            <!-- LOADING -->
-
             <div
-                id="loading"
-                class="loading"
-            >
-                <div class="spinner"></div>
-
-                <p>
-                    Loading movies...
-                </p>
-            </div>
-
-
-            <!-- ERROR -->
-
-            <div
-                id="errorBox"
-                class="error-box"
-                style="display: none;"
-            >
-                <h3>
-                    Movies could not be loaded
-                </h3>
-
-                <p id="errorText">
-                    Please refresh the page.
-                </p>
-
-                <button
-                    id="retryButton"
-                    type="button"
-                >
-                    Try Again
-                </button>
-            </div>
-
-
-            <!-- MOVIES -->
-
-            <div
-                id="movieGrid"
+                id="searchResultsGrid"
                 class="movie-grid"
             ></div>
-
-
-            <!-- NO RESULTS -->
 
             <div
                 id="noResults"
                 class="no-results"
-                style="display: none;"
+                style="display:none;"
             >
 
                 <h3>
@@ -195,48 +195,193 @@
         </section>
 
 
-        <!-- MOVIES SECTION -->
-
+        <!-- TRENDING -->
         <section
-            class="movie-section second-section"
-            id="movies"
+            id="trending"
+            class="movie-section"
         >
 
-            <div class="info-box">
+            <div class="section-heading">
 
-                <h2>
-                    Find Your Next Movie
-                </h2>
+                <div>
 
-                <p>
-                    Search for your favorite movie above and click a
-                    movie poster to find its official trailer on YouTube.
-                </p>
+                    <p class="section-label">
+                        POPULAR NOW
+                    </p>
+
+                    <h2>
+                        🔥 Trending Movies
+                    </h2>
+
+                </div>
+
+                <span
+                    id="trendingCount"
+                    class="movie-count"
+                >
+                    Loading...
+                </span>
 
             </div>
 
+            <div
+                id="trendingGrid"
+                class="movie-grid"
+            ></div>
+
         </section>
+
+
+        <!-- FEATURED -->
+        <section
+            id="featured"
+            class="movie-section"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <p class="section-label">
+                        TOP RATED
+                    </p>
+
+                    <h2>
+                        ⭐ Featured Movies
+                    </h2>
+
+                </div>
+
+                <span
+                    id="featuredCount"
+                    class="movie-count"
+                >
+                    Loading...
+                </span>
+
+            </div>
+
+            <div
+                id="featuredGrid"
+                class="movie-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- NEW MOVIES -->
+        <section
+            id="newMovies"
+            class="movie-section"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <p class="section-label">
+                        LATEST
+                    </p>
+
+                    <h2>
+                        🆕 New Movies
+                    </h2>
+
+                </div>
+
+                <span
+                    id="newCount"
+                    class="movie-count"
+                >
+                    Loading...
+                </span>
+
+            </div>
+
+            <div
+                id="newGrid"
+                class="movie-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- BIG CATALOG -->
+        <section
+            id="allMovies"
+            class="movie-section"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <p class="section-label">
+                        MOVIE LIBRARY
+                    </p>
+
+                    <h2>
+                        🎬 Movie Collection
+                    </h2>
+
+                </div>
+
+                <span
+                    id="allCount"
+                    class="movie-count"
+                >
+                    Loading...
+                </span>
+
+            </div>
+
+            <div
+                id="allGrid"
+                class="movie-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- LOAD MORE -->
+        <div
+            id="loadMoreContainer"
+            class="load-more-container"
+        >
+
+            <button
+                id="loadMoreButton"
+                type="button"
+            >
+                Load More Movies
+            </button>
+
+        </div>
+
 
     </main>
 
 
-    <!-- ================= FOOTER ================= -->
-
+    <!-- FOOTER -->
     <footer class="site-footer">
 
         <div class="footer-container">
 
             <div>
 
-                <a href="#" class="footer-logo">
+                <a
+                    href="#"
+                    class="footer-logo"
+                >
                     XYZMOVIEDAILY
                 </a>
 
                 <p>
-                    Your daily movie discovery website.
+                    Discover movies every day.
                 </p>
 
             </div>
+
 
             <div class="footer-links">
 
@@ -244,18 +389,24 @@
                     Trending
                 </a>
 
-                <a href="#movies">
-                    Movies
+                <a href="#featured">
+                    Featured
+                </a>
+
+                <a href="#newMovies">
+                    New
                 </a>
 
             </div>
 
         </div>
 
+
         <div class="copyright">
 
-            © <span id="currentYear"></span>
-            XYZMOVIEDAILY. All rights reserved.
+            ©
+            <span id="currentYear"></span>
+            XYZMOVIEDAILY
 
         </div>
 
