@@ -1,419 +1,736 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XYZMOVIEDAILY - Movies, Trailers & Categories</title>
+  <meta
+    name="description"
+    content="XYZMOVIEDAILY - Discover trending Bollywood, Hollywood, South Indian and Hindi available movies."
+  >
 
-    <meta
-        name="description"
-        content="XYZMOVIEDAILY - Discover popular, new and featured movies."
-    >
-
-    <title>XYZMOVIEDAILY - Movies</title>
-
-    <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-    <!-- HEADER -->
-    <header class="site-header">
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="container header-inner">
 
-        <div class="header-container">
+      <a href="#" class="logo" id="homeLogo">
+        XYZ<span>MOVIEDAILY</span>
+      </a>
 
-            <a href="#" class="logo">
-                XYZ<span>MOVIE</span>DAILY
-            </a>
+      <button
+        class="mobile-menu-btn"
+        id="mobileMenuButton"
+        type="button"
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
 
-            <nav class="navigation">
-                <a href="#trending">Trending</a>
-                <a href="#featured">Featured</a>
-                <a href="#newMovies">New Movies</a>
-            </nav>
+      <nav class="main-nav" id="mainNav">
+        <a href="#trendingSection">Trending</a>
+        <a href="#bollywoodSection">Bollywood</a>
+        <a href="#hollywoodSection">Hollywood</a>
+        <a href="#southSection">South Indian</a>
+        <a href="#hindiSection">Hindi Available</a>
+        <a href="#genresSection">Genres</a>
+      </nav>
 
-        </div>
+    </div>
+  </header>
 
-    </header>
 
+  <!-- HERO -->
+  <main>
 
-    <!-- HERO -->
     <section class="hero">
+      <div class="container hero-content">
 
-        <div class="hero-content">
+        <div class="hero-text">
+          <span class="hero-badge">🎬 MOVIES • TRAILERS • DISCOVERY</span>
 
-            <p class="hero-label">
-                YOUR DAILY MOVIE DESTINATION
-            </p>
+          <h1>
+            Discover Movies<br>
+            <span>Every Day</span>
+          </h1>
 
-            <h1>
-                Discover Your<br>
-                Next Movie
-            </h1>
+          <p>
+            Explore trending Bollywood, Hollywood, South Indian,
+            Hindi available and popular genre movies.
+          </p>
 
-            <p class="hero-description">
-                Explore popular, featured and new movies.
-                Click any movie to find its official trailer.
-            </p>
-
-            <a
-                href="#trending"
-                class="hero-button"
-            >
-                Explore Movies
-            </a>
-
+          <a href="#trendingSection" class="hero-button">
+            Explore Movies
+          </a>
         </div>
 
+      </div>
     </section>
 
 
     <!-- SEARCH -->
     <section class="search-section">
+      <div class="container">
 
-        <div class="search-container">
+        <div class="search-box">
 
-            <div class="search-box">
+          <span class="search-icon">🔎</span>
 
-                <span class="search-icon">
-                    🔎
-                </span>
+          <input
+            type="search"
+            id="searchInput"
+            placeholder="Search movies..."
+            autocomplete="off"
+          >
 
-                <input
-                    type="search"
-                    id="searchInput"
-                    placeholder="Search movies..."
-                    autocomplete="off"
-                >
-
-                <button
-                    id="clearSearch"
-                    type="button"
-                >
-                    Clear
-                </button>
-
-            </div>
+          <button
+            id="clearSearch"
+            class="clear-search"
+            type="button"
+            aria-label="Clear search"
+          >
+            ×
+          </button>
 
         </div>
+
+      </div>
+    </section>
+
+
+    <!-- SEARCH RESULTS -->
+    <section
+      class="movie-section search-results-section"
+      id="searchResultsSection"
+      hidden
+    >
+      <div class="container">
+
+        <div class="section-heading">
+          <div>
+            <span class="section-label">SEARCH</span>
+            <h2>Search Results</h2>
+          </div>
+
+          <span class="movie-count" id="searchCount">0 Movies</span>
+        </div>
+
+        <div class="movie-grid" id="searchResultsGrid"></div>
+
+        <div class="no-results" id="noResults" hidden>
+          <div class="no-results-icon">🎬</div>
+          <h3>No movies found</h3>
+          <p>Try another movie title.</p>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- CATEGORY NAVIGATION -->
+    <section class="category-navigation">
+      <div class="container">
+
+        <div class="category-scroll">
+
+          <button class="category-chip active" data-category="all">
+            All Movies
+          </button>
+
+          <button class="category-chip" data-category="trending">
+            🔥 Trending
+          </button>
+
+          <button class="category-chip" data-category="bollywood">
+            🇮🇳 Bollywood
+          </button>
+
+          <button class="category-chip" data-category="hollywood">
+            🇺🇸 Hollywood
+          </button>
+
+          <button class="category-chip" data-category="south">
+            🎬 South Indian
+          </button>
+
+          <button class="category-chip" data-category="tamil">
+            Tamil
+          </button>
+
+          <button class="category-chip" data-category="telugu">
+            Telugu
+          </button>
+
+          <button class="category-chip" data-category="malayalam">
+            Malayalam
+          </button>
+
+          <button class="category-chip" data-category="kannada">
+            Kannada
+          </button>
+
+          <button class="category-chip" data-category="hindi">
+            🟡 Hindi Available
+          </button>
+
+          <button class="category-chip" data-category="action">
+            ⚔️ Action
+          </button>
+
+          <button class="category-chip" data-category="comedy">
+            😂 Comedy
+          </button>
+
+          <button class="category-chip" data-category="romance">
+            ❤️ Romance
+          </button>
+
+          <button class="category-chip" data-category="thriller">
+            🔪 Thriller
+          </button>
+
+          <button class="category-chip" data-category="horror">
+            👻 Horror
+          </button>
+
+          <button class="category-chip" data-category="drama">
+            🎭 Drama
+          </button>
+
+          <button class="category-chip" data-category="sci-fi">
+            🚀 Sci-Fi
+          </button>
+
+          <button class="category-chip" data-category="crime">
+            🕵️ Crime
+          </button>
+
+          <button class="category-chip" data-category="fantasy">
+            🧙 Fantasy
+          </button>
+
+          <button class="category-chip" data-category="adventure">
+            🗺️ Adventure
+          </button>
+
+          <button class="category-chip" data-category="animation">
+            🎨 Animation
+          </button>
+
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- LOADING -->
+    <section class="loading-section" id="loading">
+
+      <div class="container loading-content">
+
+        <div class="loader"></div>
+
+        <h3>Loading Movies...</h3>
+
+        <p>
+          Finding the latest movies for you.
+        </p>
+
+      </div>
 
     </section>
 
 
-    <main>
+    <!-- ERROR -->
+    <section class="error-section" id="errorBox" hidden>
 
+      <div class="container">
 
-        <!-- GLOBAL LOADING -->
-        <div
-            id="loading"
-            class="loading"
-        >
+        <div class="error-card">
 
-            <div class="spinner"></div>
+          <div class="error-icon">⚠️</div>
 
-            <p>
-                Loading movies...
-            </p>
+          <h3>Something went wrong</h3>
 
-        </div>
+          <p id="errorText">
+            Movies could not be loaded.
+          </p>
 
-
-        <!-- ERROR -->
-        <div
-            id="errorBox"
-            class="error-box"
-            style="display:none;"
-        >
-
-            <h3>
-                Movie catalog could not be loaded
-            </h3>
-
-            <p id="errorText">
-                Please try again.
-            </p>
-
-            <button
-                id="retryButton"
-                type="button"
-            >
-                Try Again
-            </button>
+          <button id="retryButton" type="button">
+            Try Again
+          </button>
 
         </div>
 
+      </div>
 
-        <!-- SEARCH RESULTS -->
-        <section
-            id="searchResultsSection"
-            class="movie-section"
-            style="display:none;"
-        >
-
-            <div class="section-heading">
-
-                <div>
-                    <p class="section-label">
-                        SEARCH
-                    </p>
-
-                    <h2>
-                        Search Results
-                    </h2>
-                </div>
-
-                <span
-                    id="searchCount"
-                    class="movie-count"
-                >
-                    0 movies
-                </span>
-
-            </div>
-
-            <div
-                id="searchResultsGrid"
-                class="movie-grid"
-            ></div>
-
-            <div
-                id="noResults"
-                class="no-results"
-                style="display:none;"
-            >
-
-                <h3>
-                    No movies found
-                </h3>
-
-                <p>
-                    Try another movie name.
-                </p>
-
-            </div>
-
-        </section>
+    </section>
 
 
-        <!-- TRENDING -->
-        <section
-            id="trending"
-            class="movie-section"
-        >
+    <!-- TRENDING -->
+    <section
+      class="movie-section"
+      id="trendingSection"
+    >
 
-            <div class="section-heading">
+      <div class="container">
 
-                <div>
+        <div class="section-heading">
 
-                    <p class="section-label">
-                        POPULAR NOW
-                    </p>
+          <div>
+            <span class="section-label">🔥 TRENDING NOW</span>
+            <h2>Trending Movies</h2>
+          </div>
 
-                    <h2>
-                        🔥 Trending Movies
-                    </h2>
-
-                </div>
-
-                <span
-                    id="trendingCount"
-                    class="movie-count"
-                >
-                    Loading...
-                </span>
-
-            </div>
-
-            <div
-                id="trendingGrid"
-                class="movie-grid"
-            ></div>
-
-        </section>
-
-
-        <!-- FEATURED -->
-        <section
-            id="featured"
-            class="movie-section"
-        >
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p class="section-label">
-                        TOP RATED
-                    </p>
-
-                    <h2>
-                        ⭐ Featured Movies
-                    </h2>
-
-                </div>
-
-                <span
-                    id="featuredCount"
-                    class="movie-count"
-                >
-                    Loading...
-                </span>
-
-            </div>
-
-            <div
-                id="featuredGrid"
-                class="movie-grid"
-            ></div>
-
-        </section>
-
-
-        <!-- NEW MOVIES -->
-        <section
-            id="newMovies"
-            class="movie-section"
-        >
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p class="section-label">
-                        LATEST
-                    </p>
-
-                    <h2>
-                        🆕 New Movies
-                    </h2>
-
-                </div>
-
-                <span
-                    id="newCount"
-                    class="movie-count"
-                >
-                    Loading...
-                </span>
-
-            </div>
-
-            <div
-                id="newGrid"
-                class="movie-grid"
-            ></div>
-
-        </section>
-
-
-        <!-- BIG CATALOG -->
-        <section
-            id="allMovies"
-            class="movie-section"
-        >
-
-            <div class="section-heading">
-
-                <div>
-
-                    <p class="section-label">
-                        MOVIE LIBRARY
-                    </p>
-
-                    <h2>
-                        🎬 Movie Collection
-                    </h2>
-
-                </div>
-
-                <span
-                    id="allCount"
-                    class="movie-count"
-                >
-                    Loading...
-                </span>
-
-            </div>
-
-            <div
-                id="allGrid"
-                class="movie-grid"
-            ></div>
-
-        </section>
-
-
-        <!-- LOAD MORE -->
-        <div
-            id="loadMoreContainer"
-            class="load-more-container"
-        >
-
-            <button
-                id="loadMoreButton"
-                type="button"
-            >
-                Load More Movies
-            </button>
+          <span class="movie-count" id="trendingCount">
+            0 Movies
+          </span>
 
         </div>
 
+        <div class="movie-grid" id="trendingGrid"></div>
 
-    </main>
+      </div>
+
+    </section>
 
 
-    <!-- FOOTER -->
-    <footer class="site-footer">
+    <!-- BOLLYWOOD -->
+    <section
+      class="movie-section category-movie-section"
+      id="bollywoodSection"
+    >
 
-        <div class="footer-container">
+      <div class="container">
 
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">🇮🇳 INDIA</span>
+            <h2>Bollywood Movies</h2>
+          </div>
+
+          <span class="movie-count" id="bollywoodCount">
+            0 Movies
+          </span>
+
+        </div>
+
+        <div class="movie-grid" id="bollywoodGrid"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- HOLLYWOOD -->
+    <section
+      class="movie-section category-movie-section"
+      id="hollywoodSection"
+    >
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">🇺🇸 INTERNATIONAL</span>
+            <h2>Hollywood Movies</h2>
+          </div>
+
+          <span class="movie-count" id="hollywoodCount">
+            0 Movies
+          </span>
+
+        </div>
+
+        <div class="movie-grid" id="hollywoodGrid"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- SOUTH INDIAN -->
+    <section
+      class="movie-section category-movie-section"
+      id="southSection"
+    >
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">🎬 SOUTH INDIA</span>
+            <h2>South Indian Movies</h2>
+          </div>
+
+          <span class="movie-count" id="southCount">
+            0 Movies
+          </span>
+
+        </div>
+
+        <div class="movie-grid" id="southGrid"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- SOUTH LANGUAGES -->
+    <section class="language-section">
+
+      <div class="container">
+
+        <div class="language-grid">
+
+          <article class="language-card" id="tamilSection">
+            <span class="language-icon">🟣</span>
             <div>
-
-                <a
-                    href="#"
-                    class="footer-logo"
-                >
-                    XYZMOVIEDAILY
-                </a>
-
-                <p>
-                    Discover movies every day.
-                </p>
-
+              <h3>Tamil Movies</h3>
+              <span id="tamilCount">0 Movies</span>
             </div>
+          </article>
 
-
-            <div class="footer-links">
-
-                <a href="#trending">
-                    Trending
-                </a>
-
-                <a href="#featured">
-                    Featured
-                </a>
-
-                <a href="#newMovies">
-                    New
-                </a>
-
+          <article class="language-card" id="teluguSection">
+            <span class="language-icon">🔵</span>
+            <div>
+              <h3>Telugu Movies</h3>
+              <span id="teluguCount">0 Movies</span>
             </div>
+          </article>
+
+          <article class="language-card" id="malayalamSection">
+            <span class="language-icon">🟢</span>
+            <div>
+              <h3>Malayalam Movies</h3>
+              <span id="malayalamCount">0 Movies</span>
+            </div>
+          </article>
+
+          <article class="language-card" id="kannadaSection">
+            <span class="language-icon">🟠</span>
+            <div>
+              <h3>Kannada Movies</h3>
+              <span id="kannadaCount">0 Movies</span>
+            </div>
+          </article>
 
         </div>
 
+      </div>
 
-        <div class="copyright">
+    </section>
 
-            ©
-            <span id="currentYear"></span>
-            XYZMOVIEDAILY
+
+    <!-- HINDI AVAILABLE -->
+    <section
+      class="movie-section category-movie-section"
+      id="hindiSection"
+    >
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">🟡 HINDI</span>
+            <h2>Hindi Available Movies</h2>
+          </div>
+
+          <span class="movie-count" id="hindiCount">
+            0 Movies
+          </span>
 
         </div>
 
-    </footer>
+        <p class="section-description">
+          Movies that have Hindi availability or Hindi-language metadata.
+          This category can include Bollywood as well as dubbed movies.
+        </p>
+
+        <div class="movie-grid" id="hindiGrid"></div>
+
+      </div>
+
+    </section>
 
 
-    <script src="app.js"></script>
+    <!-- GENRES -->
+    <section
+      class="movie-section"
+      id="genresSection"
+    >
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">EXPLORE</span>
+            <h2>Movie Genres</h2>
+          </div>
+        </div>
+
+
+        <!-- ACTION -->
+        <div class="genre-block" id="actionGenre">
+          <div class="genre-heading">
+            <h3>⚔️ Action</h3>
+            <span id="actionCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="actionGrid"></div>
+        </div>
+
+
+        <!-- COMEDY -->
+        <div class="genre-block" id="comedyGenre">
+          <div class="genre-heading">
+            <h3>😂 Comedy</h3>
+            <span id="comedyCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="comedyGrid"></div>
+        </div>
+
+
+        <!-- ROMANCE -->
+        <div class="genre-block" id="romanceGenre">
+          <div class="genre-heading">
+            <h3>❤️ Romance</h3>
+            <span id="romanceCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="romanceGrid"></div>
+        </div>
+
+
+        <!-- THRILLER -->
+        <div class="genre-block" id="thrillerGenre">
+          <div class="genre-heading">
+            <h3>🔪 Thriller</h3>
+            <span id="thrillerCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="thrillerGrid"></div>
+        </div>
+
+
+        <!-- HORROR -->
+        <div class="genre-block" id="horrorGenre">
+          <div class="genre-heading">
+            <h3>👻 Horror</h3>
+            <span id="horrorCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="horrorGrid"></div>
+        </div>
+
+
+        <!-- DRAMA -->
+        <div class="genre-block" id="dramaGenre">
+          <div class="genre-heading">
+            <h3>🎭 Drama</h3>
+            <span id="dramaCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="dramaGrid"></div>
+        </div>
+
+
+        <!-- SCI-FI -->
+        <div class="genre-block" id="sci-fiGenre">
+          <div class="genre-heading">
+            <h3>🚀 Sci-Fi</h3>
+            <span id="sci-fiCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="sci-fiGrid"></div>
+        </div>
+
+
+        <!-- CRIME -->
+        <div class="genre-block" id="crimeGenre">
+          <div class="genre-heading">
+            <h3>🕵️ Crime</h3>
+            <span id="crimeCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="crimeGrid"></div>
+        </div>
+
+
+        <!-- FANTASY -->
+        <div class="genre-block" id="fantasyGenre">
+          <div class="genre-heading">
+            <h3>🧙 Fantasy</h3>
+            <span id="fantasyCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="fantasyGrid"></div>
+        </div>
+
+
+        <!-- ADVENTURE -->
+        <div class="genre-block" id="adventureGenre">
+          <div class="genre-heading">
+            <h3>🗺️ Adventure</h3>
+            <span id="adventureCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="adventureGrid"></div>
+        </div>
+
+
+        <!-- ANIMATION -->
+        <div class="genre-block" id="animationGenre">
+          <div class="genre-heading">
+            <h3>🎨 Animation</h3>
+            <span id="animationCount">0 Movies</span>
+          </div>
+
+          <div class="movie-grid compact-grid" id="animationGrid"></div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- FEATURED -->
+    <section class="movie-section" id="featuredSection">
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">⭐ FEATURED</span>
+            <h2>Top Rated Movies</h2>
+          </div>
+
+          <span class="movie-count" id="featuredCount">
+            0 Movies
+          </span>
+
+        </div>
+
+        <div class="movie-grid" id="featuredGrid"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- NEW MOVIES -->
+    <section class="movie-section" id="newSection">
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">🆕 NEW</span>
+            <h2>New Movies</h2>
+          </div>
+
+          <span class="movie-count" id="newCount">
+            0 Movies
+          </span>
+
+        </div>
+
+        <div class="movie-grid" id="newGrid"></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ALL MOVIES -->
+    <section class="movie-section" id="allMoviesSection">
+
+      <div class="container">
+
+        <div class="section-heading">
+
+          <div>
+            <span class="section-label">🎞️ COLLECTION</span>
+            <h2>Movie Collection</h2>
+          </div>
+
+          <span class="movie-count" id="allCount">
+            0 Movies
+          </span>
+
+        </div>
+
+        <div class="movie-grid" id="allGrid"></div>
+
+
+        <div
+          class="load-more-container"
+          id="loadMoreContainer"
+        >
+          <button
+            class="load-more-button"
+            id="loadMoreButton"
+            type="button"
+          >
+            Load More Movies
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+
+    <div class="container footer-inner">
+
+      <div>
+        <a href="#" class="logo footer-logo">
+          XYZ<span>MOVIEDAILY</span>
+        </a>
+
+        <p>
+          Movie discovery, categories and official trailers.
+        </p>
+      </div>
+
+      <div class="footer-links">
+        <a href="#trendingSection">Trending</a>
+        <a href="#bollywoodSection">Bollywood</a>
+        <a href="#hollywoodSection">Hollywood</a>
+        <a href="#southSection">South Indian</a>
+        <a href="#hindiSection">Hindi Available</a>
+      </div>
+
+      <div class="footer-copy">
+        <p>
+          © <span id="currentYear"></span> XYZMOVIEDAILY
+        </p>
+      </div>
+
+    </div>
+
+  </footer>
+
+
+  <script src="app.js"></script>
 
 </body>
 </html>
