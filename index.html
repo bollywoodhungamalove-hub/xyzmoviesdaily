@@ -10,7 +10,7 @@
 
     <meta
         name="description"
-        content="XYZMOVIEDAILY - Trending movies and official trailers."
+        content="XYZMOVIEDAILY - Trending movies, latest movies and official trailers."
     >
 
     <title>XYZMOVIEDAILY - Trending Movies</title>
@@ -20,19 +20,19 @@
 
 <body>
 
-    <!-- HEADER -->
+    <!-- ================= HEADER ================= -->
+
     <header class="site-header">
 
-        <div class="header-inner">
+        <div class="header-container">
 
             <a href="#" class="logo">
                 XYZ<span>MOVIE</span>DAILY
             </a>
 
-            <nav class="main-nav">
+            <nav class="navigation">
                 <a href="#trending">Trending</a>
                 <a href="#movies">Movies</a>
-                <a href="#about">About</a>
             </nav>
 
         </div>
@@ -40,12 +40,13 @@
     </header>
 
 
-    <!-- HERO -->
+    <!-- ================= HERO ================= -->
+
     <section class="hero">
 
         <div class="hero-content">
 
-            <p class="hero-small">
+            <p class="hero-small-title">
                 WELCOME TO
             </p>
 
@@ -53,11 +54,14 @@
                 XYZMOVIEDAILY
             </h1>
 
-            <p>
-                Discover trending movies and watch their official trailers.
+            <p class="hero-description">
+                Discover popular movies and find their official trailers.
             </p>
 
-            <a href="#trending" class="hero-button">
+            <a
+                href="#trending"
+                class="hero-button"
+            >
                 Explore Movies
             </a>
 
@@ -66,33 +70,40 @@
     </section>
 
 
-    <!-- SEARCH -->
-    <section class="search-section">
+    <!-- ================= MAIN ================= -->
 
-        <div class="search-container">
+    <main>
 
-            <input
-                type="search"
-                id="searchInput"
-                placeholder="Search movies..."
-                autocomplete="off"
-            >
+        <!-- SEARCH -->
 
-            <button id="searchButton">
-                Search
-            </button>
+        <section class="search-section">
 
-        </div>
+            <div class="search-container">
 
-    </section>
+                <input
+                    type="search"
+                    id="searchInput"
+                    placeholder="Search movies..."
+                    autocomplete="off"
+                >
+
+                <button
+                    id="clearSearch"
+                    type="button"
+                >
+                    Clear
+                </button>
+
+            </div>
+
+        </section>
 
 
-    <!-- TRENDING -->
-    <main id="movies">
+        <!-- TRENDING -->
 
         <section
+            class="movie-section"
             id="trending"
-            class="movies-section"
         >
 
             <div class="section-heading">
@@ -107,41 +118,100 @@
                     </h2>
                 </div>
 
-                <button
-                    id="refreshTrending"
-                    class="refresh-button"
+                <span
+                    id="movieCount"
+                    class="movie-count"
                 >
-                    Refresh
-                </button>
+                    Loading...
+                </span>
 
             </div>
 
 
-            <!-- STATUS -->
+            <!-- LOADING -->
+
             <div
-                id="status"
-                class="status"
+                id="loading"
+                class="loading"
             >
-                Loading movies...
+                <div class="spinner"></div>
+
+                <p>
+                    Loading movies...
+                </p>
             </div>
 
 
-            <!-- MOVIE GRID -->
+            <!-- ERROR -->
+
+            <div
+                id="errorBox"
+                class="error-box"
+                style="display: none;"
+            >
+                <h3>
+                    Movies could not be loaded
+                </h3>
+
+                <p id="errorText">
+                    Please refresh the page.
+                </p>
+
+                <button
+                    id="retryButton"
+                    type="button"
+                >
+                    Try Again
+                </button>
+            </div>
+
+
+            <!-- MOVIES -->
+
             <div
                 id="movieGrid"
                 class="movie-grid"
             ></div>
 
 
-            <!-- LOAD MORE -->
-            <div class="load-more-container">
+            <!-- NO RESULTS -->
 
-                <button
-                    id="loadMoreButton"
-                    class="load-more-button"
-                >
-                    Load More Movies
-                </button>
+            <div
+                id="noResults"
+                class="no-results"
+                style="display: none;"
+            >
+
+                <h3>
+                    No movies found
+                </h3>
+
+                <p>
+                    Try another movie name.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- MOVIES SECTION -->
+
+        <section
+            class="movie-section second-section"
+            id="movies"
+        >
+
+            <div class="info-box">
+
+                <h2>
+                    Find Your Next Movie
+                </h2>
+
+                <p>
+                    Search for your favorite movie above and click a
+                    movie poster to find its official trailer on YouTube.
+                </p>
 
             </div>
 
@@ -150,49 +220,48 @@
     </main>
 
 
-    <!-- ABOUT -->
-    <section
-        id="about"
-        class="about-section"
-    >
+    <!-- ================= FOOTER ================= -->
 
-        <div class="about-inner">
+    <footer class="site-footer">
 
-            <p class="section-label">
-                ABOUT
-            </p>
+        <div class="footer-container">
 
-            <h2>
-                XYZMOVIEDAILY
-            </h2>
+            <div>
 
-            <p>
-                XYZMOVIEDAILY helps you discover movies that are
-                currently popular and quickly find their official
-                trailers.
-            </p>
+                <a href="#" class="footer-logo">
+                    XYZMOVIEDAILY
+                </a>
+
+                <p>
+                    Your daily movie discovery website.
+                </p>
+
+            </div>
+
+            <div class="footer-links">
+
+                <a href="#trending">
+                    Trending
+                </a>
+
+                <a href="#movies">
+                    Movies
+                </a>
+
+            </div>
 
         </div>
 
-    </section>
+        <div class="copyright">
 
-
-    <!-- FOOTER -->
-    <footer class="site-footer">
-
-        <p>
             © <span id="currentYear"></span>
-            XYZMOVIEDAILY
-        </p>
+            XYZMOVIEDAILY. All rights reserved.
 
-        <p class="footer-note">
-            Movie information and images provided through TMDB.
-        </p>
+        </div>
 
     </footer>
 
 
-    <!-- JAVASCRIPT -->
     <script src="app.js"></script>
 
 </body>
