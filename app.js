@@ -1,1767 +1,1312 @@
-// ============================================================
+// ============================================
 // XYZMOVIEDAILY
-// LARGE INDIAN MOVIE COLLECTION
-// ============================================================
+// Main Application
+// ============================================
 
-const API_BASE = "https://v3-cinemeta.strem.io";
+const CINEMETA_API = "https://v3-cinemeta.strem.io";
 
-let allMovies = [];
-let currentPage = 1;
+const MOVIES_PER_SECTION = 24;
 
-const MOVIES_PER_LOAD = 100;
+const metadataCache = new Map();
 
-// ============================================================
-// SEARCH TERMS
-// ============================================================
 
-const SEARCH_TERMS = [
-
-  // Hindi / Bollywood
-  "hindi",
-  "bollywood",
-  "hindi movie",
-  "hindi film",
-  "indian movie",
-  "indian film",
-
-  // Tamil
-  "tamil",
-  "tamil movie",
-  "tamil film",
-  "kollywood",
-
-  // Telugu
-  "telugu",
-  "telugu movie",
-  "telugu film",
-  "tollywood",
-
-  // Malayalam
-  "malayalam",
-  "malayalam movie",
-  "malayalam film",
-  "mollywood",
-
-  // Kannada
-  "kannada",
-  "kannada movie",
-  "kannada film",
-  "sandalwood",
-
-  // Indian cinema
-  "india",
-  "indian cinema",
-  "indian film",
-  "indian action",
-  "indian comedy",
-  "indian drama",
-  "indian thriller",
-  "indian romance",
-  "indian horror",
-
-  // Hindi popular genres
-  "hindi action",
-  "hindi comedy",
-  "hindi drama",
-  "hindi thriller",
-  "hindi romance",
-  "hindi horror",
-  "hindi crime",
-
-  // Tamil genres
-  "tamil action",
-  "tamil comedy",
-  "tamil drama",
-  "tamil thriller",
-  "tamil romance",
-  "tamil horror",
-
-  // Telugu genres
-  "telugu action",
-  "telugu comedy",
-  "telugu drama",
-  "telugu thriller",
-  "telugu romance",
-  "telugu horror",
-
-  // Malayalam genres
-  "malayalam action",
-  "malayalam comedy",
-  "malayalam drama",
-  "malayalam thriller",
-  "malayalam romance",
-  "malayalam horror",
-
-  // Kannada genres
-  "kannada action",
-  "kannada comedy",
-  "kannada drama",
-  "kannada thriller",
-  "kannada romance",
-  "kannada horror"
-];
-
-// ============================================================
-// DOM
-// ============================================================
+// ============================================
+// DOM HELPERS
+// ============================================
 
 function $(id) {
-  return document.getElementById(id);
+    return document.getElementById(id);
 }
 
-// ============================================================
-// FALLBACK POSTER
-// ============================================================
 
-function fallbackPoster(title) {
+// ============================================
+// APP STATE
+// ============================================
 
-  return (
-    "https://dummyimage.com/500x750/151515/ffffff.jpg" +
-    "&text=" +
-    encodeURIComponent(title || "Movie")
-  );
-}
+let allMovies = [];
+let loadedMovies = [];
 
-// ============================================================
-// CLEAN TEXT
-// ============================================================
 
-function cleanText(value) {
+// ============================================
+// START APPLICATION
+// ============================================
 
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[_\-\/]+/g, " ")
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+document.addEventListener("DOMContentLoaded", () => {
 
-// ============================================================
-// NORMALIZE MOVIE
-// ============================================================
-
-function normalizeMovie(movie) {
-
-  if (!movie) return null;
-
-  const id =
-    movie.id ||
-    movie.imdb_id ||
-    movie.imdbId;
-
-  const title =
-    movie.name ||
-    movie.title;
-
-  if (!id || !title) {
-    return null;
-  }
-
-  const genres =
-    Array.isArray(movie.genres)
-      ? movie.genres
-      : [];
-
-  const cast =
-    Array.isArray(movie.cast)
-      ? movie.cast.join(" ")
-      : movie.cast || "";
-
-  const director =
-    Array.isArray(movie.director)
-      ? movie.director.join(" ")
-      : movie.director || "";
-
-  const language =
-    movie.language ||
-    movie.originalLanguage ||
-    movie.original_language ||
-    "";
-
-  const country =
-    movie.country ||
-    "";
-
-  const year =
-    movie.year ||
-    movie.releaseInfo ||
-    "";
-
-  const rating =
-    movie.imdbRating ||
-    movie.rating ||
-    "";
-
-  const poster =
-    movie.poster ||
-    "";
-
-  const description =
-    movie.description ||
-    movie.overview ||
-    "";
-
-  const genreText =
-    genres.join(" ");
-
-  const searchText =
-    cleanText([
-      title,
-      description,
-      genreText,
-      language,
-      country,
-      cast,
-      director
-    ].join(" "));
-
-  return {
-
-    id,
-
-    title,
-
-    poster:
-      poster ||
-      fallbackPoster(title),
-
-    year:
-      String(year),
-
-    rating:
-      rating
-        ? Number(rating).toFixed(1)
-        : "",
-
-    description,
-
-    genres,
-
-    genreText,
-
-    language,
-
-    country,
-
-    originalLanguage:
-      movie.originalLanguage ||
-      movie.original_language ||
-      "",
-
-    cast,
-
-    director,
-
-    searchText
-  };
-}
-
-// ============================================================
-// FETCH SEARCH
-// ============================================================
-
-async function searchCinemeta(term) {
-
-  const encoded =
-    encodeURIComponent(term);
-
-  const url =
-    `${API_BASE}/catalog/movie/top/search=${encoded}.json`;
-
-  try {
-
-    const response =
-      await fetch(url);
-
-    if (!response.ok) {
-      console.warn(
-        "Search failed:",
-        term,
-        response.status
-      );
-
-      return [];
-    }
-
-    const data =
-      await response.json();
-
-    return Array.isArray(data.metas)
-      ? data.metas
-      : [];
-
-  } catch (error) {
-
-    console.warn(
-      "Search error:",
-      term,
-      error
-    );
-
-    return [];
-  }
-}
-
-// ============================================================
-// PAGINATED CATALOG
-// ============================================================
-
-async function fetchCatalog(
-  catalog,
-  skip
-) {
-
-  const url =
-    `${API_BASE}/catalog/movie/${catalog}/skip=${skip}.json`;
-
-  try {
-
-    const response =
-      await fetch(url);
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const data =
-      await response.json();
-
-    return Array.isArray(data.metas)
-      ? data.metas
-      : [];
-
-  } catch {
-
-    return [];
-  }
-}
-
-// ============================================================
-// LOAD BIG MOVIE DATABASE
-// ============================================================
-
-async function loadMovies() {
-
-  showLoading(true);
-  hideError();
-
-  try {
-
-    console.log(
-      "Starting large movie collection..."
-    );
-
-    const results = [];
-
-    // --------------------------------------------------------
-    // 1. SEARCH INDIAN MOVIES
-    // --------------------------------------------------------
-
-    for (
-      let i = 0;
-      i < SEARCH_TERMS.length;
-      i += 5
-    ) {
-
-      const batch =
-        SEARCH_TERMS.slice(
-          i,
-          i + 5
+    if (typeof MOVIE_DATABASE === "undefined") {
+        showError(
+            "movies.js was not loaded. Make sure movies.js is in the same folder as index.html."
         );
-
-      console.log(
-        "Searching:",
-        batch
-      );
-
-      const batchResults =
-        await Promise.all(
-          batch.map(
-            searchCinemeta
-          )
-        );
-
-      for (
-        const movies
-        of batchResults
-      ) {
-
-        results.push(
-          ...movies
-        );
-      }
+        return;
     }
 
-    // --------------------------------------------------------
-    // 2. GET MANY CATALOG PAGES
-    // --------------------------------------------------------
+    initializeSite();
 
-    const catalogRequests = [];
+});
 
-    const catalogs = [
-      "top",
-      "imdbRating",
-      "year"
-    ];
 
-    for (
-      const catalog
-      of catalogs
-    ) {
+// ============================================
+// INITIALIZE
+// ============================================
 
-      for (
-        let skip = 0;
-        skip <= 2000;
-        skip += 100
-      ) {
+async function initializeSite() {
 
-        catalogRequests.push(
-          fetchCatalog(
-            catalog,
-            skip
-          )
-        );
+    hideError();
 
-      }
-    }
+    showLoading(true);
 
-    const catalogResults =
-      await Promise.all(
-        catalogRequests
-      );
-
-    for (
-      const movies
-      of catalogResults
-    ) {
-
-      results.push(
-        ...movies
-      );
-
-    }
-
-    console.log(
-      "Raw movie results:",
-      results.length
-    );
-
-    // --------------------------------------------------------
-    // 3. NORMALIZE
-    // --------------------------------------------------------
-
-    const normalized =
-      results
-        .map(normalizeMovie)
-        .filter(Boolean);
-
-    // --------------------------------------------------------
-    // 4. REMOVE DUPLICATES
-    // --------------------------------------------------------
-
-    const movieMap =
-      new Map();
-
-    for (
-      const movie
-      of normalized
-    ) {
-
-      if (
-        !movieMap.has(movie.id)
-      ) {
-
-        movieMap.set(
-          movie.id,
-          movie
-        );
-
-      }
-
-    }
-
-    allMovies =
-      Array.from(
-        movieMap.values()
-      );
-
-    console.log(
-      "Unique movies:",
-      allMovies.length
-    );
-
-    // --------------------------------------------------------
-    // 5. ENRICH INDIAN MOVIES
-    // --------------------------------------------------------
-
-    await enrichIndianMovies();
-
-    // --------------------------------------------------------
-    // 6. CLASSIFY
-    // --------------------------------------------------------
-
-    classifyAllMovies();
-
-    // --------------------------------------------------------
-    // 7. RENDER
-    // --------------------------------------------------------
-
-    renderAll();
-
-    printCategoryCounts();
-
-    showLoading(false);
-
-  } catch (error) {
-
-    console.error(error);
-
-    showLoading(false);
-
-    showError(
-      "Movie loading failed. Please refresh the page."
-    );
-  }
-}
-
-// ============================================================
-// ENRICH MOVIES
-// ============================================================
-
-async function enrichIndianMovies() {
-
-  console.log(
-    "Loading detailed metadata..."
-  );
-
-  /*
-    We don't request every movie at once.
-    That would be too many requests for a browser.
-
-    First 1000 movies are enriched in batches.
-  */
-
-  const limit =
-    Math.min(
-      allMovies.length,
-      1000
-    );
-
-  const batchSize = 15;
-
-  for (
-    let start = 0;
-    start < limit;
-    start += batchSize
-  ) {
-
-    const batch =
-      allMovies.slice(
-        start,
-        start + batchSize
-      );
-
-    await Promise.all(
-      batch.map(
-        async movie => {
-
-          try {
-
-            const response =
-              await fetch(
-                `${API_BASE}/meta/movie/${movie.id}.json`
-              );
-
-            if (!response.ok) {
-              return;
-            }
-
-            const data =
-              await response.json();
-
-            if (!data.meta) {
-              return;
-            }
-
-            const updated =
-              normalizeMovie({
-                ...movie,
-                ...data.meta
-              });
-
-            if (updated) {
-
-              Object.assign(
-                movie,
-                updated
-              );
-
-            }
-
-          } catch {
-            // Ignore individual metadata errors
-          }
-
-        }
-      )
-    );
-
-    console.log(
-      `Metadata: ${Math.min(
-        start + batchSize,
-        limit
-      )}/${limit}`
-    );
-  }
-}
-
-// ============================================================
-// CLASSIFICATION
-// ============================================================
-
-function classifyMovie(movie) {
-
-  const text =
-    movie.searchText || "";
-
-  const title =
-    cleanText(movie.title);
-
-  const language =
-    cleanText(
-      movie.language
-    );
-
-  const originalLanguage =
-    cleanText(
-      movie.originalLanguage
-    );
-
-  const country =
-    cleanText(
-      movie.country
-    );
-
-  const genres =
-    cleanText(
-      movie.genreText
-    );
-
-  // ----------------------------------------------------------
-  // TAMIL
-  // ----------------------------------------------------------
-
-  const tamil =
-    language === "ta" ||
-    originalLanguage === "ta" ||
-    language.includes("tamil") ||
-    originalLanguage.includes("tamil") ||
-    text.includes("tamil");
-
-  // ----------------------------------------------------------
-  // TELUGU
-  // ----------------------------------------------------------
-
-  const telugu =
-    language === "te" ||
-    originalLanguage === "te" ||
-    language.includes("telugu") ||
-    originalLanguage.includes("telugu") ||
-    text.includes("telugu");
-
-  // ----------------------------------------------------------
-  // MALAYALAM
-  // ----------------------------------------------------------
-
-  const malayalam =
-    language === "ml" ||
-    originalLanguage === "ml" ||
-    language.includes("malayalam") ||
-    originalLanguage.includes("malayalam") ||
-    text.includes("malayalam");
-
-  // ----------------------------------------------------------
-  // KANNADA
-  // ----------------------------------------------------------
-
-  const kannada =
-    language === "kn" ||
-    originalLanguage === "kn" ||
-    language.includes("kannada") ||
-    originalLanguage.includes("kannada") ||
-    text.includes("kannada");
-
-  // ----------------------------------------------------------
-  // HINDI
-  // ----------------------------------------------------------
-
-  const hindi =
-    language === "hi" ||
-    originalLanguage === "hi" ||
-    language.includes("hindi") ||
-    originalLanguage.includes("hindi") ||
-    text.includes("hindi") ||
-    text.includes("bollywood");
-
-  // ----------------------------------------------------------
-  // INDIA
-  // ----------------------------------------------------------
-
-  const india =
-    country.includes("india") ||
-    text.includes("india") ||
-    text.includes("indian") ||
-    tamil ||
-    telugu ||
-    malayalam ||
-    kannada ||
-    hindi;
-
-  // ----------------------------------------------------------
-  // SOUTH INDIA
-  // ----------------------------------------------------------
-
-  const south =
-    tamil ||
-    telugu ||
-    malayalam ||
-    kannada;
-
-  // ----------------------------------------------------------
-  // BOLLYWOOD
-  // ----------------------------------------------------------
-
-  const bollywood =
-    hindi &&
-    india;
-
-  // ----------------------------------------------------------
-  // HOLLYWOOD
-  // ----------------------------------------------------------
-
-  const english =
-    language === "en" ||
-    originalLanguage === "en" ||
-    language.includes("english") ||
-    originalLanguage.includes("english");
-
-  const hollywood =
-    english &&
-    !india;
-
-  // ----------------------------------------------------------
-  // HINDI AVAILABLE
-  // ----------------------------------------------------------
-
-  const hindiAvailable =
-    hindi ||
-    text.includes("hindi dubbed") ||
-    text.includes("dubbed in hindi") ||
-    text.includes("hindi version");
-
-  // ----------------------------------------------------------
-  // GENRES
-  // ----------------------------------------------------------
-
-  const action =
-    genres.includes("action");
-
-  const comedy =
-    genres.includes("comedy");
-
-  const romance =
-    genres.includes("romance") ||
-    genres.includes("romantic");
-
-  const thriller =
-    genres.includes("thriller");
-
-  const horror =
-    genres.includes("horror");
-
-  const drama =
-    genres.includes("drama");
-
-  const sciFi =
-    genres.includes("sci fi") ||
-    genres.includes("science fiction");
-
-  const crime =
-    genres.includes("crime");
-
-  const fantasy =
-    genres.includes("fantasy");
-
-  const adventure =
-    genres.includes("adventure");
-
-  const animation =
-    genres.includes("animation");
-
-  return {
-
-    bollywood,
-    hollywood,
-
-    south,
-
-    tamil,
-    telugu,
-    malayalam,
-    kannada,
-
-    hindi,
-    hindiAvailable,
-
-    action,
-    comedy,
-    romance,
-    thriller,
-    horror,
-    drama,
-    sciFi,
-    crime,
-    fantasy,
-    adventure,
-    animation
-  };
-}
-
-// ============================================================
-// CLASSIFY ALL
-// ============================================================
-
-function classifyAllMovies() {
-
-  for (
-    const movie
-    of allMovies
-  ) {
-
-    movie.categories =
-      classifyMovie(movie);
-
-  }
-
-}
-
-// ============================================================
-// GET CATEGORY
-// ============================================================
-
-function getCategoryMovies(
-  category
-) {
-
-  return allMovies.filter(
-    movie =>
-      movie.categories &&
-      movie.categories[category]
-  );
-}
-
-// ============================================================
-// SORT
-// ============================================================
-
-function sortMovies(movies) {
-
-  return [...movies].sort(
-    (a, b) => {
-
-      const ratingA =
-        Number(a.rating) || 0;
-
-      const ratingB =
-        Number(b.rating) || 0;
-
-      if (
-        ratingA !== ratingB
-      ) {
-
-        return (
-          ratingB -
-          ratingA
-        );
-
-      }
-
-      return (
-        (Number(b.year) || 0) -
-        (Number(a.year) || 0)
-      );
-    }
-  );
-}
-
-// ============================================================
-// RENDER
-// ============================================================
-
-function renderAll() {
-
-  // Trending
-  renderSection(
-    "trendingGrid",
-    "trendingCount",
-    sortMovies(allMovies),
-    24
-  );
-
-  // Bollywood
-  renderSection(
-    "bollywoodGrid",
-    "bollywoodCount",
-    sortMovies(
-      getCategoryMovies(
-        "bollywood"
-      )
-    ),
-    1000
-  );
-
-  // Hollywood
-  renderSection(
-    "hollywoodGrid",
-    "hollywoodCount",
-    sortMovies(
-      getCategoryMovies(
-        "hollywood"
-      )
-    ),
-    24
-  );
-
-  // South India
-  renderSection(
-    "southGrid",
-    "southCount",
-    sortMovies(
-      getCategoryMovies(
-        "south"
-      )
-    ),
-    1000
-  );
-
-  // Tamil
-  renderSection(
-    "tamilGrid",
-    "tamilCount",
-    sortMovies(
-      getCategoryMovies(
-        "tamil"
-      )
-    ),
-    1000
-  );
-
-  // Telugu
-  renderSection(
-    "teluguGrid",
-    "teluguCount",
-    sortMovies(
-      getCategoryMovies(
-        "telugu"
-      )
-    ),
-    1000
-  );
-
-  // Malayalam
-  renderSection(
-    "malayalamGrid",
-    "malayalamCount",
-    sortMovies(
-      getCategoryMovies(
-        "malayalam"
-      )
-    ),
-    1000
-  );
-
-  // Kannada
-  renderSection(
-    "kannadaGrid",
-    "kannadaCount",
-    sortMovies(
-      getCategoryMovies(
-        "kannada"
-      )
-    ),
-    1000
-  );
-
-  // Hindi Available
-  renderSection(
-    "hindiGrid",
-    "hindiCount",
-    sortMovies(
-      getCategoryMovies(
-        "hindiAvailable"
-      )
-    ),
-    1000
-  );
-
-  // Genres
-  renderSection(
-    "actionGrid",
-    "actionCount",
-    sortMovies(
-      getCategoryMovies(
-        "action"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "comedyGrid",
-    "comedyCount",
-    sortMovies(
-      getCategoryMovies(
-        "comedy"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "romanceGrid",
-    "romanceCount",
-    sortMovies(
-      getCategoryMovies(
-        "romance"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "thrillerGrid",
-    "thrillerCount",
-    sortMovies(
-      getCategoryMovies(
-        "thriller"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "horrorGrid",
-    "horrorCount",
-    sortMovies(
-      getCategoryMovies(
-        "horror"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "dramaGrid",
-    "dramaCount",
-    sortMovies(
-      getCategoryMovies(
-        "drama"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "sci-fiGrid",
-    "sci-fiCount",
-    sortMovies(
-      getCategoryMovies(
-        "sciFi"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "crimeGrid",
-    "crimeCount",
-    sortMovies(
-      getCategoryMovies(
-        "crime"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "fantasyGrid",
-    "fantasyCount",
-    sortMovies(
-      getCategoryMovies(
-        "fantasy"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "adventureGrid",
-    "adventureCount",
-    sortMovies(
-      getCategoryMovies(
-        "adventure"
-      )
-    ),
-    24
-  );
-
-  renderSection(
-    "animationGrid",
-    "animationCount",
-    sortMovies(
-      getCategoryMovies(
-        "animation"
-      )
-    ),
-    24
-  );
-
-  // Top Rated
-  renderSection(
-    "featuredGrid",
-    "featuredCount",
-    sortMovies(allMovies),
-    24
-  );
-
-  // New
-  renderSection(
-    "newGrid",
-    "newCount",
-    [...allMovies].sort(
-      (a, b) =>
-        (Number(b.year) || 0) -
-        (Number(a.year) || 0)
-    ),
-    24
-  );
-
-  // All movies
-  renderAllMovies();
-
-  setText(
-    "currentYear",
-    new Date().getFullYear()
-  );
-}
-
-// ============================================================
-// RENDER SECTION
-// ============================================================
-
-function renderSection(
-  gridId,
-  countId,
-  movies,
-  limit
-) {
-
-  const grid =
-    $(gridId);
-
-  if (!grid) {
-    return;
-  }
-
-  const count =
-    movies.length;
-
-  setText(
-    countId,
-    `${count} movies`
-  );
-
-  const visible =
-    movies.slice(
-      0,
-      limit
-    );
-
-  if (!visible.length) {
-
-    grid.innerHTML = `
-      <div class="empty-category">
-        No movies found yet.
-      </div>
-    `;
-
-    return;
-  }
-
-  grid.innerHTML =
-    visible
-      .map(createMovieCard)
-      .join("");
-}
-
-// ============================================================
-// ALL MOVIES
-// ============================================================
-
-function renderAllMovies() {
-
-  const grid =
-    $("allGrid");
-
-  if (!grid) {
-    return;
-  }
-
-  const movies =
-    allMovies.slice(
-      0,
-      currentPage *
-      MOVIES_PER_LOAD
-    );
-
-  setText(
-    "allCount",
-    `${allMovies.length} movies`
-  );
-
-  grid.innerHTML =
-    movies
-      .map(createMovieCard)
-      .join("");
-
-  const button =
-    $("loadMoreContainer");
-
-  if (button) {
-
-    button.style.display =
-      movies.length <
-      allMovies.length
-        ? "flex"
-        : "none";
-  }
-}
-
-// ============================================================
-// MOVIE CARD
-// ============================================================
-
-function createMovieCard(movie) {
-
-  const title =
-    escapeHTML(movie.title);
-
-  const poster =
-    movie.poster ||
-    fallbackPoster(
-      movie.title
-    );
-
-  const rating =
-    movie.rating
-      ? `⭐ ${movie.rating}`
-      : "⭐ N/A";
-
-  return `
-    <article
-      class="movie-card"
-      tabindex="0"
-      onclick="openTrailerFromCard('${escapeJS(movie.title)}','${escapeJS(movie.year)}')"
-      onkeydown="handleMovieKeydown(event,'${escapeJS(movie.title)}','${escapeJS(movie.year)}')"
-    >
-
-      <div class="movie-poster-wrap">
-
-        <img
-          class="movie-poster"
-          src="${poster}"
-          alt="${title}"
-          loading="lazy"
-          onerror="this.onerror=null;this.src='${fallbackPoster(movie.title)}'"
-        >
-
-        <div class="movie-play">
-          ▶
-        </div>
-
-        <div class="movie-rating">
-          ${rating}
-        </div>
-
-      </div>
-
-      <div class="movie-info">
-
-        <h3>
-          ${title}
-        </h3>
-
-        <div class="movie-meta">
-          ${movie.year || "—"}
-        </div>
-
-      </div>
-
-    </article>
-  `;
-}
-
-// ============================================================
-// TRAILER
-// ============================================================
-
-function openTrailerFromCard(
-  title,
-  year
-) {
-
-  const query =
-    `${title} ${year || ""} official trailer`;
-
-  const url =
-    "https://www.youtube.com/results?search_query=" +
-    encodeURIComponent(query);
-
-  window.open(
-    url,
-    "_blank",
-    "noopener,noreferrer"
-  );
-}
-
-// ============================================================
-// KEYBOARD
-// ============================================================
-
-function handleMovieKeydown(
-  event,
-  title,
-  year
-) {
-
-  if (
-    event.key === "Enter" ||
-    event.key === " "
-  ) {
-
-    event.preventDefault();
-
-    openTrailerFromCard(
-      title,
-      year
-    );
-  }
-}
-
-// ============================================================
-// SEARCH
-// ============================================================
-
-function setupSearch() {
-
-  const input =
-    $("searchInput");
-
-  const clear =
-    $("clearSearch");
-
-  if (input) {
-
-    input.addEventListener(
-      "input",
-      event => {
-
-        const query =
-          cleanText(
-            event.target.value
-          );
-
-        const section =
-          $("searchResultsSection");
-
-        const grid =
-          $("searchResultsGrid");
-
-        if (!query) {
-
-          if (section) {
-            section.style.display =
-              "none";
-          }
-
-          return;
-        }
-
-        if (section) {
-          section.style.display =
-            "block";
-        }
-
-        const results =
-          allMovies.filter(
-            movie =>
-              movie.searchText
-                .includes(query)
-          );
-
-        setText(
-          "searchCount",
-          `${results.length} movies found`
-        );
-
-        if (!results.length) {
-
-          grid.innerHTML = "";
-
-          const noResults =
-            $("noResults");
-
-          if (noResults) {
-            noResults.style.display =
-              "block";
-          }
-
-          return;
-        }
-
-        const noResults =
-          $("noResults");
-
-        if (noResults) {
-          noResults.style.display =
-            "none";
-        }
-
-        grid.innerHTML =
-          results
-            .slice(0, 100)
-            .map(createMovieCard)
-            .join("");
-      }
-    );
-  }
-
-  if (clear) {
-
-    clear.addEventListener(
-      "click",
-      () => {
-
-        if (input) {
-          input.value = "";
-        }
-
-        const section =
-          $("searchResultsSection");
-
-        if (section) {
-          section.style.display =
-            "none";
-        }
-      }
-    );
-  }
-}
-
-// ============================================================
-// LOAD MORE
-// ============================================================
-
-function setupLoadMore() {
-
-  const button =
-    $("loadMoreButton");
-
-  if (!button) {
-    return;
-  }
-
-  button.addEventListener(
-    "click",
-    () => {
-
-      currentPage++;
-
-      renderAllMovies();
-    }
-  );
-}
-
-// ============================================================
-// CATEGORY NAV
-// ============================================================
-
-function showCategory(
-  category
-) {
-
-  const map = {
-
-    trending:
-      "trendingSection",
-
-    bollywood:
-      "bollywoodSection",
-
-    hollywood:
-      "hollywoodSection",
-
-    south:
-      "southSection",
-
-    tamil:
-      "tamilSection",
-
-    telugu:
-      "teluguSection",
-
-    malayalam:
-      "malayalamSection",
-
-    kannada:
-      "kannadaSection",
-
-    hindi:
-      "hindiSection",
-
-    genres:
-      "genresSection",
-
-    action:
-      "actionGenre",
-
-    comedy:
-      "comedyGenre",
-
-    romance:
-      "romanceGenre",
-
-    thriller:
-      "thrillerGenre",
-
-    horror:
-      "horrorGenre",
-
-    drama:
-      "dramaGenre",
-
-    sciFi:
-      "sci-fiGenre",
-
-    crime:
-      "crimeGenre",
-
-    fantasy:
-      "fantasyGenre",
-
-    adventure:
-      "adventureGenre",
-
-    animation:
-      "animationGenre"
-  };
-
-  const target =
-    $(map[category]);
-
-  if (target) {
-
-    target.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-  }
-}
-
-// ============================================================
-// DEBUG COUNTS
-// ============================================================
-
-function printCategoryCounts() {
-
-  const categories = [
-
-    "bollywood",
-    "south",
-    "tamil",
-    "telugu",
-    "malayalam",
-    "kannada",
-    "hindiAvailable",
-    "hollywood"
-  ];
-
-  console.log(
-    "================================"
-  );
-
-  console.log(
-    "XYZMOVIEDAILY CATEGORY COUNTS"
-  );
-
-  console.log(
-    "================================"
-  );
-
-  for (
-    const category
-    of categories
-  ) {
-
-    console.log(
-      category,
-      getCategoryMovies(
-        category
-      ).length
-    );
-  }
-
-  console.log(
-    "TOTAL UNIQUE MOVIES:",
-    allMovies.length
-  );
-
-  console.log(
-    "================================"
-  );
-}
-
-// ============================================================
-// LOADING
-// ============================================================
-
-function showLoading(show) {
-
-  const element =
-    $("loading");
-
-  if (!element) {
-    return;
-  }
-
-  element.style.display =
-    show
-      ? "flex"
-      : "none";
-}
-
-// ============================================================
-// ERROR
-// ============================================================
-
-function showError(message) {
-
-  const box =
-    $("errorBox");
-
-  const text =
-    $("errorText");
-
-  if (text) {
-    text.textContent =
-      message;
-  }
-
-  if (box) {
-    box.style.display =
-      "block";
-  }
-}
-
-function hideError() {
-
-  const box =
-    $("errorBox");
-
-  if (box) {
-    box.style.display =
-      "none";
-  }
-}
-
-// ============================================================
-// RETRY
-// ============================================================
-
-function setupRetry() {
-
-  const button =
-    $("retryButton");
-
-  if (!button) {
-    return;
-  }
-
-  button.addEventListener(
-    "click",
-    loadMovies
-  );
-}
-
-// ============================================================
-// ESCAPE
-// ============================================================
-
-function escapeHTML(value) {
-
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function escapeJS(value) {
-
-  return String(value || "")
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/\n/g, "\\n")
-    .replace(/\r/g, "\\r");
-}
-
-// ============================================================
-// START
-// ============================================================
-
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
+    updateYear();
 
     setupSearch();
 
-    setupLoadMore();
+    setupNavigation();
 
-    setupRetry();
+    buildMovieList();
 
-    loadMovies();
+    await loadMovieMetadata();
 
-  }
-);
+    renderAllSections();
 
-// ============================================================
-// GLOBAL
-// ============================================================
+    showLoading(false);
 
-window.openTrailerFromCard =
-  openTrailerFromCard;
+}
 
-window.handleMovieKeydown =
-  handleMovieKeydown;
 
-window.showCategory =
-  showCategory;
+// ============================================
+// BUILD MOVIE LIST
+// ============================================
 
-window.loadMoreMovies =
-  () => {
+function buildMovieList() {
 
-    currentPage++;
+    allMovies = [];
+
+    const categories = [
+        "bollywood",
+        "south",
+        "tamil",
+        "telugu",
+        "malayalam",
+        "kannada"
+    ];
+
+    categories.forEach(category => {
+
+        if (!Array.isArray(MOVIE_DATABASE[category])) {
+            return;
+        }
+
+        MOVIE_DATABASE[category].forEach(movie => {
+
+            if (!movie || !movie.id) {
+                return;
+            }
+
+            allMovies.push({
+                ...movie,
+                category
+            });
+
+        });
+
+    });
+
+
+    // Remove duplicate IMDb IDs
+    const uniqueMovies = new Map();
+
+    allMovies.forEach(movie => {
+
+        if (!uniqueMovies.has(movie.id)) {
+            uniqueMovies.set(movie.id, movie);
+        }
+
+    });
+
+    allMovies = Array.from(uniqueMovies.values());
+
+}
+
+
+// ============================================
+// LOAD CINEMETA METADATA
+// ============================================
+
+async function loadMovieMetadata() {
+
+    if (!allMovies.length) {
+        return;
+    }
+
+    const BATCH_SIZE = 8;
+
+    loadedMovies = [];
+
+    for (let i = 0; i < allMovies.length; i += BATCH_SIZE) {
+
+        const batch = allMovies.slice(i, i + BATCH_SIZE);
+
+        const results = await Promise.all(
+            batch.map(movie => fetchMovieMetadata(movie))
+        );
+
+        results.forEach(movie => {
+
+            if (movie) {
+                loadedMovies.push(movie);
+            }
+
+        });
+
+        updateLoadingProgress(
+            Math.min(i + BATCH_SIZE, allMovies.length),
+            allMovies.length
+        );
+
+    }
+
+}
+
+
+// ============================================
+// FETCH ONE MOVIE
+// ============================================
+
+async function fetchMovieMetadata(movie) {
+
+    if (metadataCache.has(movie.id)) {
+        return metadataCache.get(movie.id);
+    }
+
+    try {
+
+        const url =
+            `${CINEMETA_API}/meta/movie/${movie.id}.json`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            return createFallbackMovie(movie);
+        }
+
+        const data = await response.json();
+
+        if (!data || !data.meta) {
+            return createFallbackMovie(movie);
+        }
+
+        const meta = data.meta;
+
+        const result = {
+
+            ...movie,
+
+            id: movie.id,
+
+            title:
+                meta.name ||
+                movie.title ||
+                "Unknown Movie",
+
+            poster:
+                meta.poster ||
+                "",
+
+            background:
+                meta.background ||
+                meta.poster ||
+                "",
+
+            description:
+                meta.description ||
+                "Movie information unavailable.",
+
+            year:
+                getMovieYear(meta, movie),
+
+            rating:
+                Number(meta.imdbRating) || 0,
+
+            genres:
+                Array.isArray(meta.genre)
+                    ? meta.genre
+                    : [],
+
+            releaseInfo:
+                meta.releaseInfo ||
+                "",
+
+            runtime:
+                meta.runtime ||
+                "",
+
+            director:
+                Array.isArray(meta.director)
+                    ? meta.director
+                    : [],
+
+            cast:
+                Array.isArray(meta.cast)
+                    ? meta.cast
+                    : [],
+
+            trailers:
+                Array.isArray(meta.trailers)
+                    ? meta.trailers
+                    : []
+
+        };
+
+        metadataCache.set(movie.id, result);
+
+        return result;
+
+    } catch (error) {
+
+        console.warn(
+            "Cinemeta error:",
+            movie.id,
+            error
+        );
+
+        return createFallbackMovie(movie);
+
+    }
+
+}
+
+
+// ============================================
+// FALLBACK MOVIE
+// ============================================
+
+function createFallbackMovie(movie) {
+
+    const result = {
+
+        ...movie,
+
+        title:
+            movie.title ||
+            "Unknown Movie",
+
+        poster: "",
+
+        background: "",
+
+        description:
+            "Movie information unavailable.",
+
+        year:
+            movie.year || "",
+
+        rating: 0,
+
+        genres: [],
+
+        releaseInfo: "",
+
+        runtime: "",
+
+        director: [],
+
+        cast: [],
+
+        trailers: []
+
+    };
+
+    metadataCache.set(movie.id, result);
+
+    return result;
+
+}
+
+
+// ============================================
+// GET YEAR
+// ============================================
+
+function getMovieYear(meta, movie) {
+
+    if (meta.releaseInfo) {
+
+        const match =
+            String(meta.releaseInfo).match(/\d{4}/);
+
+        if (match) {
+            return Number(match[0]);
+        }
+
+    }
+
+    if (meta.year) {
+        return Number(meta.year);
+    }
+
+    return movie.year || "";
+
+}
+
+
+// ============================================
+// RENDER EVERYTHING
+// ============================================
+
+function renderAllSections() {
+
+    renderCategory(
+        "bollywood",
+        "bollywoodGrid",
+        "bollywoodCount"
+    );
+
+    renderCategory(
+        "south",
+        "southGrid",
+        "southCount"
+    );
+
+    renderCategory(
+        "tamil",
+        "tamilGrid",
+        "tamilCount"
+    );
+
+    renderCategory(
+        "telugu",
+        "teluguGrid",
+        "teluguCount"
+    );
+
+    renderCategory(
+        "malayalam",
+        "malayalamGrid",
+        "malayalamCount"
+    );
+
+    renderCategory(
+        "kannada",
+        "kannadaGrid",
+        "kannadaCount"
+    );
+
+    renderHindiMovies();
+
+    renderTrending();
+
+    renderFeatured();
+
+    renderNewMovies();
 
     renderAllMovies();
-  };
+
+    renderGenres();
+
+}
+
+
+// ============================================
+// CATEGORY RENDER
+// ============================================
+
+function renderCategory(
+    category,
+    gridId,
+    countId
+) {
+
+    const grid = $(gridId);
+    const count = $(countId);
+
+    if (!grid) {
+        return;
+    }
+
+    const movies =
+        loadedMovies.filter(
+            movie => movie.category === category
+        );
+
+    if (count) {
+        count.textContent = movies.length;
+    }
+
+    grid.innerHTML = "";
+
+    movies
+        .slice(0, MOVIES_PER_SECTION)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+}
+
+
+// ============================================
+// HINDI MOVIES
+// ============================================
+
+function renderHindiMovies() {
+
+    const grid = $("hindiGrid");
+    const count = $("hindiCount");
+
+    if (!grid) {
+        return;
+    }
+
+    const movies = loadedMovies.filter(movie => {
+
+        return (
+            movie.category === "bollywood" ||
+            movie.title.toLowerCase().includes("hindi")
+        );
+
+    });
+
+    if (count) {
+        count.textContent = movies.length;
+    }
+
+    grid.innerHTML = "";
+
+    movies
+        .slice(0, MOVIES_PER_SECTION)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+}
+
+
+// ============================================
+// TRENDING
+// ============================================
+
+function renderTrending() {
+
+    const grid = $("trendingGrid");
+    const count = $("trendingCount");
+
+    if (!grid) {
+        return;
+    }
+
+    const movies = [...loadedMovies]
+        .sort(
+            (a, b) =>
+                (b.rating || 0) -
+                (a.rating || 0)
+        );
+
+    if (count) {
+        count.textContent = movies.length;
+    }
+
+    grid.innerHTML = "";
+
+    movies
+        .slice(0, MOVIES_PER_SECTION)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+}
+
+
+// ============================================
+// FEATURED / TOP RATED
+// ============================================
+
+function renderFeatured() {
+
+    const grid = $("featuredGrid");
+    const count = $("featuredCount");
+
+    if (!grid) {
+        return;
+    }
+
+    const movies = [...loadedMovies]
+        .sort(
+            (a, b) =>
+                (b.rating || 0) -
+                (a.rating || 0)
+        );
+
+    if (count) {
+        count.textContent = movies.length;
+    }
+
+    grid.innerHTML = "";
+
+    movies
+        .slice(0, MOVIES_PER_SECTION)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+}
+
+
+// ============================================
+// NEW MOVIES
+// ============================================
+
+function renderNewMovies() {
+
+    const grid = $("newGrid");
+    const count = $("newCount");
+
+    if (!grid) {
+        return;
+    }
+
+    const movies = [...loadedMovies]
+        .sort(
+            (a, b) =>
+                (b.year || 0) -
+                (a.year || 0)
+        );
+
+    if (count) {
+        count.textContent = movies.length;
+    }
+
+    grid.innerHTML = "";
+
+    movies
+        .slice(0, MOVIES_PER_SECTION)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+}
+
+
+// ============================================
+// ALL MOVIES
+// ============================================
+
+function renderAllMovies() {
+
+    const grid = $("allGrid");
+    const count = $("allCount");
+
+    if (!grid) {
+        return;
+    }
+
+    const movies = [...loadedMovies]
+        .sort(
+            (a, b) =>
+                (b.year || 0) -
+                (a.year || 0)
+        );
+
+    if (count) {
+        count.textContent = movies.length;
+    }
+
+    grid.innerHTML = "";
+
+    movies
+        .slice(0, 48)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+}
+
+
+// ============================================
+// GENRES
+// ============================================
+
+function renderGenres() {
+
+    const genres = {
+
+        "Action": [
+            "actionGrid",
+            "actionCount"
+        ],
+
+        "Comedy": [
+            "comedyGrid",
+            "comedyCount"
+        ],
+
+        "Romance": [
+            "romanceGrid",
+            "romanceCount"
+        ],
+
+        "Thriller": [
+            "thrillerGrid",
+            "thrillerCount"
+        ],
+
+        "Horror": [
+            "horrorGrid",
+            "horrorCount"
+        ],
+
+        "Drama": [
+            "dramaGrid",
+            "dramaCount"
+        ],
+
+        "Sci-Fi": [
+            "sci-fiGrid",
+            "sci-fiCount"
+        ],
+
+        "Crime": [
+            "crimeGrid",
+            "crimeCount"
+        ],
+
+        "Fantasy": [
+            "fantasyGrid",
+            "fantasyCount"
+        ],
+
+        "Adventure": [
+            "adventureGrid",
+            "adventureCount"
+        ],
+
+        "Animation": [
+            "animationGrid",
+            "animationCount"
+        ]
+
+    };
+
+
+    Object.entries(genres).forEach(
+        ([genre, ids]) => {
+
+            const grid = $(ids[0]);
+            const count = $(ids[1]);
+
+            if (!grid) {
+                return;
+            }
+
+            const movies =
+                loadedMovies.filter(movie =>
+                    movie.genres.some(g =>
+                        String(g)
+                            .toLowerCase()
+                            .includes(
+                                genre.toLowerCase()
+                            )
+                    )
+                );
+
+            if (count) {
+                count.textContent = movies.length;
+            }
+
+            grid.innerHTML = "";
+
+            movies
+                .slice(0, MOVIES_PER_SECTION)
+                .forEach(movie => {
+
+                    grid.appendChild(
+                        createMovieCard(movie)
+                    );
+
+                });
+
+        }
+    );
+
+}
+
+
+// ============================================
+// CREATE MOVIE CARD
+// ============================================
+
+function createMovieCard(movie) {
+
+    const card =
+        document.createElement("article");
+
+    card.className = "movie-card";
+
+    card.tabIndex = 0;
+
+
+    // ----------------------------------------
+    // Poster
+    // ----------------------------------------
+
+    const poster =
+        document.createElement("div");
+
+    poster.className = "movie-poster";
+
+
+    if (movie.poster) {
+
+        const image =
+            document.createElement("img");
+
+        image.src = movie.poster;
+
+        image.alt =
+            `${movie.title} poster`;
+
+        image.loading = "lazy";
+
+        image.onerror = () => {
+
+            image.style.display = "none";
+
+            poster.classList.add(
+                "poster-fallback"
+            );
+
+            poster.innerHTML =
+                `<span>${escapeHTML(movie.title)}</span>`;
+
+        };
+
+        poster.appendChild(image);
+
+    } else {
+
+        poster.classList.add(
+            "poster-fallback"
+        );
+
+        poster.innerHTML =
+            `<span>${escapeHTML(movie.title)}</span>`;
+
+    }
+
+
+    // ----------------------------------------
+    // Info
+    // ----------------------------------------
+
+    const info =
+        document.createElement("div");
+
+    info.className = "movie-info";
+
+
+    const title =
+        document.createElement("h3");
+
+    title.textContent =
+        movie.title;
+
+
+    const meta =
+        document.createElement("div");
+
+    meta.className = "movie-meta";
+
+
+    if (movie.year) {
+
+        const year =
+            document.createElement("span");
+
+        year.textContent =
+            movie.year;
+
+        meta.appendChild(year);
+
+    }
+
+
+    if (movie.rating) {
+
+        const rating =
+            document.createElement("span");
+
+        rating.textContent =
+            `★ ${movie.rating.toFixed(1)}`;
+
+        meta.appendChild(rating);
+
+    }
+
+
+    info.appendChild(title);
+
+    info.appendChild(meta);
+
+
+    card.appendChild(poster);
+
+    card.appendChild(info);
+
+
+    // ----------------------------------------
+    // Click
+    // ----------------------------------------
+
+    card.addEventListener(
+        "click",
+        () => openMovie(movie)
+    );
+
+
+    card.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter" ||
+                event.key === " "
+            ) {
+
+                event.preventDefault();
+
+                openMovie(movie);
+
+            }
+
+        }
+    );
+
+
+    return card;
+
+}
+
+
+// ============================================
+// OPEN MOVIE
+// ============================================
+
+function openMovie(movie) {
+
+    const query =
+        `${movie.title} official trailer`;
+
+    const youtubeURL =
+        `https://www.youtube.com/results?search_query=` +
+        encodeURIComponent(query);
+
+    window.open(
+        youtubeURL,
+        "_blank",
+        "noopener,noreferrer"
+    );
+
+}
+
+
+// ============================================
+// SEARCH
+// ============================================
+
+function setupSearch() {
+
+    const searchInput =
+        $("searchInput");
+
+    const clearButton =
+        $("clearSearch");
+
+    if (!searchInput) {
+        return;
+    }
+
+
+    searchInput.addEventListener(
+        "input",
+        () => {
+
+            const query =
+                searchInput.value
+                    .trim()
+                    .toLowerCase();
+
+            if (clearButton) {
+
+                clearButton.style.display =
+                    query ? "block" : "none";
+
+            }
+
+            if (!query) {
+
+                hideSearchResults();
+
+                return;
+
+            }
+
+            searchMovies(query);
+
+        }
+    );
+
+
+    if (clearButton) {
+
+        clearButton.addEventListener(
+            "click",
+            () => {
+
+                searchInput.value = "";
+
+                clearButton.style.display =
+                    "none";
+
+                hideSearchResults();
+
+                searchInput.focus();
+
+            }
+        );
+
+    }
+
+}
+
+
+// ============================================
+// SEARCH MOVIES
+// ============================================
+
+function searchMovies(query) {
+
+    const section =
+        $("searchResultsSection");
+
+    const grid =
+        $("searchResultsGrid");
+
+    const count =
+        $("searchCount");
+
+    const noResults =
+        $("noResults");
+
+
+    if (!section || !grid) {
+        return;
+    }
+
+
+    const results =
+        loadedMovies.filter(movie => {
+
+            const title =
+                movie.title
+                    .toLowerCase();
+
+            const genreText =
+                movie.genres
+                    .join(" ")
+                    .toLowerCase();
+
+            return (
+                title.includes(query) ||
+                genreText.includes(query)
+            );
+
+        });
+
+
+    section.style.display =
+        "block";
+
+
+    grid.innerHTML = "";
+
+
+    if (count) {
+        count.textContent =
+            results.length;
+    }
+
+
+    if (!results.length) {
+
+        if (noResults) {
+            noResults.style.display =
+                "block";
+        }
+
+        return;
+
+    }
+
+
+    if (noResults) {
+        noResults.style.display =
+            "none";
+    }
+
+
+    results
+        .slice(0, 60)
+        .forEach(movie => {
+
+            grid.appendChild(
+                createMovieCard(movie)
+            );
+
+        });
+
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+}
+
+
+// ============================================
+// HIDE SEARCH
+// ============================================
+
+function hideSearchResults() {
+
+    const section =
+        $("searchResultsSection");
+
+    const noResults =
+        $("noResults");
+
+    if (section) {
+        section.style.display =
+            "none";
+    }
+
+    if (noResults) {
+        noResults.style.display =
+            "none";
+    }
+
+}
+
+
+// ============================================
+// NAVIGATION
+// ============================================
+
+function setupNavigation() {
+
+    const links =
+        document.querySelectorAll(
+            "[data-section]"
+        );
+
+
+    links.forEach(link => {
+
+        link.addEventListener(
+            "click",
+            event => {
+
+                const target =
+                    link.getAttribute(
+                        "data-section"
+                    );
+
+                if (!target) {
+                    return;
+                }
+
+                const section =
+                    $(target);
+
+                if (!section) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                section.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+
+            }
+        );
+
+    });
+
+}
+
+
+// ============================================
+// YEAR
+// ============================================
+
+function updateYear() {
+
+    const year =
+        $("currentYear");
+
+    if (year) {
+        year.textContent =
+            new Date().getFullYear();
+    }
+
+}
+
+
+// ============================================
+// LOADING
+// ============================================
+
+function showLoading(show) {
+
+    const loading =
+        $("loading");
+
+    if (!loading) {
+        return;
+    }
+
+    loading.style.display =
+        show ? "flex" : "none";
+
+}
+
+
+function updateLoadingProgress(
+    current,
+    total
+) {
+
+    const loading =
+        $("loading");
+
+    if (!loading) {
+        return;
+    }
+
+    const percentage =
+        Math.round(
+            (current / total) * 100
+        );
+
+
+    const text =
+        loading.querySelector(
+            "p"
+        );
+
+
+    if (text) {
+
+        text.textContent =
+            `Loading movies... ${percentage}%`;
+
+    }
+
+}
+
+
+// ============================================
+// ERROR
+// ============================================
+
+function showError(message) {
+
+    const box =
+        $("errorBox");
+
+    const text =
+        $("errorText");
+
+
+    if (text) {
+        text.textContent =
+            message;
+    }
+
+    if (box) {
+        box.style.display =
+            "block";
+    }
+
+}
+
+
+function hideError() {
+
+    const box =
+        $("errorBox");
+
+    if (box) {
+        box.style.display =
+            "none";
+    }
+
+}
+
+
+// ============================================
+// RETRY
+// ============================================
+
+const retryButton =
+    $("retryButton");
+
+if (retryButton) {
+
+    retryButton.addEventListener(
+        "click",
+        () => {
+            window.location.reload();
+        }
+    );
+
+}
+
+
+// ============================================
+// HTML ESCAPE
+// ============================================
+
+function escapeHTML(value) {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
