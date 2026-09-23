@@ -1,58 +1,230 @@
 /* =====================================================
    XYZMOVIEDAILY
-   NO TMDB API
+   LARGE MOVIE CATALOG
+   NO TMDB
 ===================================================== */
 
 
-/* ================= CONFIG ================= */
+/* =====================================================
+   CONFIGURATION
+===================================================== */
 
 const API_BASE =
     "https://v3-cinemeta.strem.io";
 
 
-const CATALOG_URL =
-    `${API_BASE}/catalog/movie/top.json`;
+/*
+    Cinemeta currently exposes movie catalogs such as:
+
+    top
+    imdbRating
+    year
+
+    It also supports skip pagination.
+*/
 
 
-/* ================= ELEMENTS ================= */
+const CATALOGS = [
 
-const movieGrid =
-    document.getElementById("movieGrid");
+    {
+        id: "top",
+        name: "Trending"
+    },
 
-const searchInput =
-    document.getElementById("searchInput");
+    {
+        id: "imdbRating",
+        name: "Featured"
+    },
 
-const clearSearch =
-    document.getElementById("clearSearch");
+    {
+        id: "year",
+        name: "New"
+    }
+
+];
+
+
+/*
+    Number of catalog pages to request.
+
+    Each request asks for another page
+    using skip=100, skip=200, etc.
+
+    Increase this later if needed.
+*/
+
+const PAGES_PER_CATALOG = 5;
+
+
+/*
+    Number of movies requested per page.
+*/
+
+const PAGE_SIZE = 100;
+
+
+/* =====================================================
+   ELEMENTS
+===================================================== */
 
 const loading =
-    document.getElementById("loading");
+    document.getElementById(
+        "loading"
+    );
+
 
 const errorBox =
-    document.getElementById("errorBox");
+    document.getElementById(
+        "errorBox"
+    );
+
 
 const errorText =
-    document.getElementById("errorText");
+    document.getElementById(
+        "errorText"
+    );
+
 
 const retryButton =
-    document.getElementById("retryButton");
+    document.getElementById(
+        "retryButton"
+    );
+
+
+const searchInput =
+    document.getElementById(
+        "searchInput"
+    );
+
+
+const clearSearch =
+    document.getElementById(
+        "clearSearch"
+    );
+
+
+const searchResultsSection =
+    document.getElementById(
+        "searchResultsSection"
+    );
+
+
+const searchResultsGrid =
+    document.getElementById(
+        "searchResultsGrid"
+    );
+
+
+const searchCount =
+    document.getElementById(
+        "searchCount"
+    );
+
 
 const noResults =
-    document.getElementById("noResults");
+    document.getElementById(
+        "noResults"
+    );
 
-const movieCount =
-    document.getElementById("movieCount");
+
+const trendingGrid =
+    document.getElementById(
+        "trendingGrid"
+    );
+
+
+const featuredGrid =
+    document.getElementById(
+        "featuredGrid"
+    );
+
+
+const newGrid =
+    document.getElementById(
+        "newGrid"
+    );
+
+
+const allGrid =
+    document.getElementById(
+        "allGrid"
+    );
+
+
+const trendingCount =
+    document.getElementById(
+        "trendingCount"
+    );
+
+
+const featuredCount =
+    document.getElementById(
+        "featuredCount"
+    );
+
+
+const newCount =
+    document.getElementById(
+        "newCount"
+    );
+
+
+const allCount =
+    document.getElementById(
+        "allCount"
+    );
+
+
+const loadMoreButton =
+    document.getElementById(
+        "loadMoreButton"
+    );
+
+
+const loadMoreContainer =
+    document.getElementById(
+        "loadMoreContainer"
+    );
+
 
 const currentYear =
-    document.getElementById("currentYear");
+    document.getElementById(
+        "currentYear"
+    );
 
 
-/* ================= DATA ================= */
+/* =====================================================
+   DATA
+===================================================== */
 
-let movies = [];
+let allMovies = [];
+
+let trendingMovies = [];
+
+let featuredMovies = [];
+
+let newMovies = [];
 
 
-/* ================= START ================= */
+/*
+    Current number of movies displayed
+    in the big Movie Collection section.
+*/
+
+let displayedMovies = 0;
+
+
+/*
+    Number added every time
+    "Load More Movies" is clicked.
+*/
+
+const LOAD_MORE_AMOUNT = 100;
+
+
+/* =====================================================
+   START
+===================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -61,78 +233,252 @@ document.addEventListener(
         currentYear.textContent =
             new Date().getFullYear();
 
-        loadMovies();
+        loadMovieCatalog();
 
     }
 );
 
 
-/* ================= LOAD MOVIES ================= */
+/* =====================================================
+   LOAD ALL CATALOGS
+===================================================== */
 
-async function loadMovies() {
+async function loadMovieCatalog() {
 
     showLoading();
 
     hideError();
 
-    hideNoResults();
 
     try {
 
-        const response =
-            await fetch(
-                CATALOG_URL,
-                {
-                    method: "GET",
+        /*
+            Create all requests.
 
-                    headers: {
-                        "Accept": "application/json"
-                    },
+            Example:
 
-                    cache: "no-store"
-                }
-            );
+            /catalog/movie/top.json
+            /catalog/movie/top/skip=100.json
+            /catalog/movie/top/skip=200.json
+
+            etc.
+        */
 
 
-        if (!response.ok) {
+        const requests = [];
 
-            throw new Error(
-                `Server returned ${response.status}`
-            );
+
+        for (
+            const catalog
+            of CATALOGS
+        ) {
+
+            for (
+                let page = 0;
+                page < PAGES_PER_CATALOG;
+                page++
+            ) {
+
+                const skip =
+                    page *
+                    PAGE_SIZE;
+
+
+                const url =
+                    createCatalogURL(
+                        catalog.id,
+                        skip
+                    );
+
+
+                requests.push({
+
+                    catalog:
+                        catalog.id,
+
+                    page:
+                        page,
+
+                    url:
+                        url
+
+                });
+
+            }
 
         }
 
 
-        const data =
-            await response.json();
+        /*
+            Request several pages
+            at the same time.
+        */
 
+        const responses =
+            await Promise.allSettled(
+
+                requests.map(
+                    request =>
+                        fetchCatalog(
+                            request.url
+                        )
+                )
+
+            );
+
+
+        /*
+            Store results separately.
+        */
+
+        const trendingData = [];
+
+        const featuredData = [];
+
+        const newData = [];
+
+        const combinedData = [];
+
+
+        responses.forEach(
+            (
+                response,
+                index
+            ) => {
+
+                if (
+                    response.status !==
+                    "fulfilled"
+                ) {
+
+                    console.warn(
+                        "Catalog request failed:",
+                        requests[index].url
+                    );
+
+                    return;
+
+                }
+
+
+                const catalog =
+                    requests[index].catalog;
+
+
+                const items =
+                    response.value;
+
+
+                if (
+                    !Array.isArray(items)
+                ) {
+
+                    return;
+
+                }
+
+
+                combinedData.push(
+                    ...items
+                );
+
+
+                if (
+                    catalog ===
+                    "top"
+                ) {
+
+                    trendingData.push(
+                        ...items
+                    );
+
+                }
+
+
+                if (
+                    catalog ===
+                    "imdbRating"
+                ) {
+
+                    featuredData.push(
+                        ...items
+                    );
+
+                }
+
+
+                if (
+                    catalog ===
+                    "year"
+                ) {
+
+                    newData.push(
+                        ...items
+                    );
+
+                }
+
+            }
+        );
+
+
+        /*
+            Remove duplicates.
+        */
+
+        allMovies =
+            uniqueMovies(
+                combinedData
+            );
+
+
+        trendingMovies =
+            uniqueMovies(
+                trendingData
+            );
+
+
+        featuredMovies =
+            uniqueMovies(
+                featuredData
+            );
+
+
+        newMovies =
+            uniqueMovies(
+                newData
+            );
+
+
+        /*
+            Make sure we actually received data.
+        */
 
         if (
-            !data ||
-            !Array.isArray(data.metas)
+            allMovies.length === 0
         ) {
 
             throw new Error(
-                "Invalid movie catalog."
+                "No movies were returned."
             );
 
         }
 
 
-        movies =
-            cleanMovies(data.metas);
+        /*
+            Render everything.
+        */
+
+        renderTrending();
+
+        renderFeatured();
+
+        renderNewMovies();
+
+        renderAllMovies();
 
 
-        if (movies.length === 0) {
-
-            throw new Error(
-                "No movies found."
-            );
-
-        }
-
-
-        renderMovies(movies);
+        hideLoading();
 
 
     } catch (error) {
@@ -145,11 +491,9 @@ async function loadMovies() {
 
         showError(
             "The movie catalog could not be loaded. " +
-            "Please try again."
+            "Please refresh the page and try again."
         );
 
-
-    } finally {
 
         hideLoading();
 
@@ -158,128 +502,395 @@ async function loadMovies() {
 }
 
 
-/* ================= CLEAN MOVIES ================= */
+/* =====================================================
+   CREATE CATALOG URL
+===================================================== */
 
-function cleanMovies(movieList) {
+function createCatalogURL(
+    catalog,
+    skip
+) {
 
-    const uniqueMovies =
-        new Map();
+    if (skip === 0) {
 
+        return (
+            `${API_BASE}` +
+            `/catalog/movie/` +
+            `${catalog}.json`
+        );
 
-    movieList.forEach(movie => {
-
-        if (!movie) {
-            return;
-        }
-
-
-        const title =
-            movie.name ||
-            movie.title ||
-            "Unknown Movie";
-
-
-        const id =
-            movie.id ||
-            title;
+    }
 
 
-        if (!uniqueMovies.has(id)) {
-
-            uniqueMovies.set(
-                id,
-                {
-                    id: id,
-
-                    title: title,
-
-                    poster:
-                        movie.poster ||
-                        "",
-
-                    background:
-                        movie.background ||
-                        "",
-
-                    year:
-                        movie.releaseInfo ||
-                        movie.year ||
-                        "",
-
-                    imdbRating:
-                        movie.imdbRating ||
-                        "",
-
-                    description:
-                        movie.description ||
-                        ""
-                }
-            );
-
-        }
-
-    });
-
-
-    return Array.from(
-        uniqueMovies.values()
+    return (
+        `${API_BASE}` +
+        `/catalog/movie/` +
+        `${catalog}/` +
+        `skip=${skip}.json`
     );
 
 }
 
 
-/* ================= RENDER MOVIES ================= */
+/* =====================================================
+   FETCH CATALOG
+===================================================== */
 
-function renderMovies(movieList) {
+async function fetchCatalog(
+    url
+) {
 
-    movieGrid.innerHTML = "";
+    const response =
+        await fetch(
+            url,
+            {
+                method: "GET",
+
+                headers: {
+                    "Accept":
+                        "application/json"
+                },
+
+                cache: "no-store"
+            }
+        );
 
 
-    if (!movieList.length) {
+    if (!response.ok) {
 
-        showNoResults();
+        throw new Error(
+            `HTTP ${response.status}`
+        );
 
-        updateCount(0);
+    }
+
+
+    const data =
+        await response.json();
+
+
+    return (
+        data &&
+        Array.isArray(data.metas)
+            ? data.metas
+            : []
+    );
+
+}
+
+
+/* =====================================================
+   REMOVE DUPLICATES
+===================================================== */
+
+function uniqueMovies(
+    movieList
+) {
+
+    const map =
+        new Map();
+
+
+    movieList.forEach(
+        movie => {
+
+            if (!movie) {
+                return;
+            }
+
+
+            const id =
+                movie.id ||
+                movie.name;
+
+
+            if (!id) {
+                return;
+            }
+
+
+            if (
+                !map.has(id)
+            ) {
+
+                map.set(
+                    id,
+                    normalizeMovie(
+                        movie
+                    )
+                );
+
+            }
+
+        }
+    );
+
+
+    return Array.from(
+        map.values()
+    );
+
+}
+
+
+/* =====================================================
+   NORMALIZE MOVIE
+===================================================== */
+
+function normalizeMovie(
+    movie
+) {
+
+    return {
+
+        id:
+            movie.id ||
+            movie.name,
+
+        title:
+            movie.name ||
+            "Unknown Movie",
+
+        poster:
+            movie.poster ||
+            "",
+
+        year:
+            movie.releaseInfo ||
+            movie.year ||
+            "",
+
+        rating:
+            movie.imdbRating ||
+            "",
+
+        description:
+            movie.description ||
+            "",
+
+        type:
+            movie.type ||
+            "movie"
+
+    };
+
+}
+
+
+/* =====================================================
+   TRENDING
+===================================================== */
+
+function renderTrending() {
+
+    /*
+        Show the first 100
+        popular movies.
+    */
+
+    renderMovieList(
+        trendingGrid,
+        trendingMovies.slice(
+            0,
+            100
+        )
+    );
+
+
+    trendingCount.textContent =
+        `${trendingMovies.length} movies`;
+
+}
+
+
+/* =====================================================
+   FEATURED
+===================================================== */
+
+function renderFeatured() {
+
+    renderMovieList(
+        featuredGrid,
+        featuredMovies.slice(
+            0,
+            100
+        )
+    );
+
+
+    featuredCount.textContent =
+        `${featuredMovies.length} movies`;
+
+}
+
+
+/* =====================================================
+   NEW
+===================================================== */
+
+function renderNewMovies() {
+
+    renderMovieList(
+        newGrid,
+        newMovies.slice(
+            0,
+            100
+        )
+    );
+
+
+    newCount.textContent =
+        `${newMovies.length} movies`;
+
+}
+
+
+/* =====================================================
+   ALL MOVIES
+===================================================== */
+
+function renderAllMovies() {
+
+    displayedMovies = 0;
+
+    allGrid.innerHTML = "";
+
+
+    loadMoreMovies();
+
+}
+
+
+/* =====================================================
+   LOAD MORE
+===================================================== */
+
+function loadMoreMovies() {
+
+    const nextMovies =
+        allMovies.slice(
+            displayedMovies,
+            displayedMovies +
+                LOAD_MORE_AMOUNT
+        );
+
+
+    if (
+        nextMovies.length === 0
+    ) {
+
+        loadMoreContainer.style.display =
+            "none";
 
         return;
 
     }
 
 
-    hideNoResults();
+    renderMovieList(
+        allGrid,
+        nextMovies,
+        true
+    );
+
+
+    displayedMovies +=
+        nextMovies.length;
+
+
+    allCount.textContent =
+        `${allMovies.length} movies`;
+
+
+    if (
+        displayedMovies >=
+        allMovies.length
+    ) {
+
+        loadMoreContainer.style.display =
+            "none";
+
+    } else {
+
+        loadMoreContainer.style.display =
+            "flex";
+
+    }
+
+}
+
+
+/* =====================================================
+   LOAD MORE BUTTON
+===================================================== */
+
+loadMoreButton.addEventListener(
+    "click",
+    () => {
+
+        loadMoreMovies();
+
+    }
+);
+
+
+/* =====================================================
+   RENDER MOVIE LIST
+===================================================== */
+
+function renderMovieList(
+    container,
+    movieList,
+    append = false
+) {
+
+    if (!append) {
+
+        container.innerHTML = "";
+
+    }
 
 
     const fragment =
         document.createDocumentFragment();
 
 
-    movieList.forEach(movie => {
+    movieList.forEach(
+        movie => {
 
-        const card =
-            createMovieCard(movie);
-
-
-        fragment.appendChild(card);
-
-    });
+            const card =
+                createMovieCard(
+                    movie
+                );
 
 
-    movieGrid.appendChild(fragment);
+            fragment.appendChild(
+                card
+            );
+
+        }
+    );
 
 
-    updateCount(
-        movieList.length
+    container.appendChild(
+        fragment
     );
 
 }
 
 
-/* ================= CREATE CARD ================= */
+/* =====================================================
+   CREATE MOVIE CARD
+===================================================== */
 
-function createMovieCard(movie) {
+function createMovieCard(
+    movie
+) {
 
     const card =
-        document.createElement("article");
+        document.createElement(
+            "article"
+        );
 
 
     card.className =
@@ -293,11 +904,18 @@ function createMovieCard(movie) {
 
     const poster =
         movie.poster ||
-        createFallbackPoster(title);
+        createFallbackPoster(
+            title
+        );
 
 
     const year =
         movie.year ||
+        "";
+
+
+    const rating =
+        movie.rating ||
         "";
 
 
@@ -332,6 +950,12 @@ function createMovieCard(movie) {
 
             <p>
                 ${escapeHTML(year)}
+
+                ${
+                    rating
+                        ? ` · ⭐ ${escapeHTML(rating)}`
+                        : ""
+                }
             </p>
 
         </div>
@@ -350,7 +974,9 @@ function createMovieCard(movie) {
         () => {
 
             image.src =
-                createFallbackPoster(title);
+                createFallbackPoster(
+                    title
+                );
 
         },
         {
@@ -363,9 +989,9 @@ function createMovieCard(movie) {
         "click",
         () => {
 
-            openOfficialTrailerSearch(
+            openTrailer(
                 title,
-                movie.year
+                year
             );
 
         }
@@ -377,34 +1003,37 @@ function createMovieCard(movie) {
 }
 
 
-/* ================= TRAILER ================= */
+/* =====================================================
+   TRAILER
+===================================================== */
 
-function openOfficialTrailerSearch(
+function openTrailer(
     title,
     year
 ) {
 
-    let searchText =
+    let search =
         `${title} official trailer`;
 
 
     if (year) {
 
-        searchText +=
+        search +=
             ` ${year}`;
 
     }
 
 
-    const youtubeURL =
-        "https://www.youtube.com/results?search_query=" +
+    const url =
+        "https://www.youtube.com/results" +
+        "?search_query=" +
         encodeURIComponent(
-            searchText
+            search
         );
 
 
     window.open(
-        youtubeURL,
+        url,
         "_blank",
         "noopener,noreferrer"
     );
@@ -412,7 +1041,9 @@ function openOfficialTrailerSearch(
 }
 
 
-/* ================= SEARCH ================= */
+/* =====================================================
+   SEARCH
+===================================================== */
 
 searchInput.addEventListener(
     "input",
@@ -424,17 +1055,32 @@ searchInput.addEventListener(
                 .toLowerCase();
 
 
+        /*
+            If search is empty,
+            hide search results.
+        */
+
         if (!query) {
 
-            renderMovies(movies);
+            searchResultsSection.style.display =
+                "none";
 
             return;
 
         }
 
 
+        /*
+            Hide normal sections
+            while searching.
+        */
+
+        searchResultsSection.style.display =
+            "block";
+
+
         const results =
-            movies.filter(
+            allMovies.filter(
                 movie => {
 
                     const title =
@@ -452,13 +1098,57 @@ searchInput.addEventListener(
             );
 
 
-        renderMovies(results);
+        searchResultsGrid.innerHTML =
+            "";
+
+
+        if (
+            results.length === 0
+        ) {
+
+            noResults.style.display =
+                "block";
+
+            searchCount.textContent =
+                "0 movies";
+
+            return;
+
+        }
+
+
+        noResults.style.display =
+            "none";
+
+
+        searchCount.textContent =
+            `${results.length} movies`;
+
+
+        renderMovieList(
+            searchResultsGrid,
+            results
+        );
+
+
+        /*
+            Scroll to results.
+        */
+
+        searchResultsSection.scrollIntoView(
+            {
+                behavior: "smooth",
+                block: "start"
+            }
+        );
 
     }
 );
 
 
-/* ================= CLEAR SEARCH ================= */
+/* =====================================================
+   CLEAR SEARCH
+===================================================== */
 
 clearSearch.addEventListener(
     "click",
@@ -466,7 +1156,11 @@ clearSearch.addEventListener(
 
         searchInput.value = "";
 
-        renderMovies(movies);
+        searchResultsSection.style.display =
+            "none";
+
+        searchResultsGrid.innerHTML =
+            "";
 
         searchInput.focus();
 
@@ -474,26 +1168,28 @@ clearSearch.addEventListener(
 );
 
 
-/* ================= RETRY ================= */
+/* =====================================================
+   RETRY
+===================================================== */
 
 retryButton.addEventListener(
     "click",
     () => {
 
-        loadMovies();
+        loadMovieCatalog();
 
     }
 );
 
 
-/* ================= LOADING ================= */
+/* =====================================================
+   LOADING
+===================================================== */
 
 function showLoading() {
 
     loading.style.display =
         "flex";
-
-    movieGrid.innerHTML = "";
 
 }
 
@@ -506,9 +1202,13 @@ function hideLoading() {
 }
 
 
-/* ================= ERROR ================= */
+/* =====================================================
+   ERROR
+===================================================== */
 
-function showError(message) {
+function showError(
+    message
+) {
 
     errorText.textContent =
         message;
@@ -527,50 +1227,35 @@ function hideError() {
 }
 
 
-/* ================= NO RESULTS ================= */
+/* =====================================================
+   FALLBACK POSTER
+===================================================== */
 
-function showNoResults() {
-
-    noResults.style.display =
-        "block";
-
-}
-
-
-function hideNoResults() {
-
-    noResults.style.display =
-        "none";
-
-}
-
-
-/* ================= COUNT ================= */
-
-function updateCount(count) {
-
-    movieCount.textContent =
-        `${count} movies`;
-
-}
-
-
-/* ================= FALLBACK POSTER ================= */
-
-function createFallbackPoster(title) {
+function createFallbackPoster(
+    title
+) {
 
     return (
-        "https://dummyimage.com/500x750/111111/ffffff" +
+        "https://dummyimage.com/" +
+        "500x750/" +
+        "111111/" +
+        "ffffff" +
         "?text=" +
-        encodeURIComponent(title)
+        encodeURIComponent(
+            title
+        )
     );
 
 }
 
 
-/* ================= HTML SAFETY ================= */
+/* =====================================================
+   HTML SAFETY
+===================================================== */
 
-function escapeHTML(value) {
+function escapeHTML(
+    value
+) {
 
     return String(value)
         .replace(
@@ -597,8 +1282,12 @@ function escapeHTML(value) {
 }
 
 
-function escapeAttribute(value) {
+function escapeAttribute(
+    value
+) {
 
-    return escapeHTML(value);
+    return escapeHTML(
+        value
+    );
 
 }
