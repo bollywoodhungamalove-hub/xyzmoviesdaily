@@ -1,17 +1,21 @@
 // ============================================
 // XYZMOVIEDAILY
-// Main Application
+// Optimized Movie Loading
 // ============================================
 
 const CINEMETA_API = "https://v3-cinemeta.strem.io";
 
-const MOVIES_PER_SECTION = 24;
+const INITIAL_MOVIES = 24;
+const BATCH_SIZE = 8;
 
 const metadataCache = new Map();
 
+let allMovies = [];
+let loadedMovies = [];
+
 
 // ============================================
-// DOM HELPERS
+// DOM
 // ============================================
 
 function $(id) {
@@ -20,23 +24,17 @@ function $(id) {
 
 
 // ============================================
-// APP STATE
-// ============================================
-
-let allMovies = [];
-let loadedMovies = [];
-
-
-// ============================================
-// START APPLICATION
+// START
 // ============================================
 
 document.addEventListener("DOMContentLoaded", () => {
 
     if (typeof MOVIE_DATABASE === "undefined") {
+
         showError(
-            "movies.js was not loaded. Make sure movies.js is in the same folder as index.html."
+            "movies.js could not be found. Make sure movies.js is in the same folder as index.html."
         );
+
         return;
     }
 
@@ -51,10 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function initializeSite() {
 
-    hideError();
-
-    showLoading(true);
-
     updateYear();
 
     setupSearch();
@@ -63,7 +57,20 @@ async function initializeSite() {
 
     buildMovieList();
 
-    await loadMovieMetadata();
+    showLoading(true);
+
+    /*
+     * Load only the first batch initially.
+     * This keeps the website fast.
+     */
+
+    const firstBatch =
+        allMovies.slice(0, INITIAL_MOVIES);
+
+    const movies =
+        await loadBatch(firstBatch);
+
+    loadedMovies.push(...movies);
 
     renderAllSections();
 
@@ -73,7 +80,7 @@ async function initializeSite() {
 
 
 // ============================================
-// BUILD MOVIE LIST
+// BUILD LOCAL MOVIE LIST
 // ============================================
 
 function buildMovieList() {
@@ -89,21 +96,30 @@ function buildMovieList() {
         "kannada"
     ];
 
+
     categories.forEach(category => {
 
-        if (!Array.isArray(MOVIE_DATABASE[category])) {
+        const list =
+            MOVIE_DATABASE[category];
+
+        if (!Array.isArray(list)) {
             return;
         }
 
-        MOVIE_DATABASE[category].forEach(movie => {
+
+        list.forEach(movie => {
 
             if (!movie || !movie.id) {
                 return;
             }
 
+
             allMovies.push({
+
                 ...movie,
+
                 category
+
             });
 
         });
@@ -111,96 +127,153 @@ function buildMovieList() {
     });
 
 
-    // Remove duplicate IMDb IDs
-    const uniqueMovies = new Map();
+    /*
+     * Remove duplicate IMDb IDs.
+     */
+
+    const unique =
+        new Map();
+
 
     allMovies.forEach(movie => {
 
-        if (!uniqueMovies.has(movie.id)) {
-            uniqueMovies.set(movie.id, movie);
+        if (!unique.has(movie.id)) {
+
+            unique.set(
+                movie.id,
+                movie
+            );
+
         }
 
     });
 
-    allMovies = Array.from(uniqueMovies.values());
+
+    allMovies =
+        Array.from(unique.values());
+
+
+    console.log(
+        "Total local movies:",
+        allMovies.length
+    );
 
 }
 
 
 // ============================================
-// LOAD CINEMETA METADATA
+// LOAD MOVIE BATCH
 // ============================================
 
-async function loadMovieMetadata() {
+async function loadBatch(batch) {
 
-    if (!allMovies.length) {
-        return;
+    if (!batch.length) {
+        return [];
     }
 
-    const BATCH_SIZE = 8;
 
-    loadedMovies = [];
+    const results = [];
 
-    for (let i = 0; i < allMovies.length; i += BATCH_SIZE) {
 
-        const batch = allMovies.slice(i, i + BATCH_SIZE);
+    for (
+        let i = 0;
+        i < batch.length;
+        i += BATCH_SIZE
+    ) {
 
-        const results = await Promise.all(
-            batch.map(movie => fetchMovieMetadata(movie))
-        );
+        const smallBatch =
+            batch.slice(
+                i,
+                i + BATCH_SIZE
+            );
 
-        results.forEach(movie => {
+
+        const response =
+            await Promise.all(
+                smallBatch.map(
+                    movie =>
+                        fetchMovieMetadata(movie)
+                )
+            );
+
+
+        response.forEach(movie => {
 
             if (movie) {
-                loadedMovies.push(movie);
+                results.push(movie);
             }
 
         });
 
-        updateLoadingProgress(
-            Math.min(i + BATCH_SIZE, allMovies.length),
-            allMovies.length
-        );
-
     }
+
+
+    return results;
 
 }
 
 
 // ============================================
-// FETCH ONE MOVIE
+// CINEMETA METADATA
 // ============================================
 
 async function fetchMovieMetadata(movie) {
 
-    if (metadataCache.has(movie.id)) {
-        return metadataCache.get(movie.id);
+    if (
+        metadataCache.has(
+            movie.id
+        )
+    ) {
+
+        return metadataCache.get(
+            movie.id
+        );
+
     }
+
 
     try {
 
         const url =
             `${CINEMETA_API}/meta/movie/${movie.id}.json`;
 
-        const response = await fetch(url);
+
+        const response =
+            await fetch(url);
+
 
         if (!response.ok) {
-            return createFallbackMovie(movie);
+
+            return createFallbackMovie(
+                movie
+            );
+
         }
 
-        const data = await response.json();
 
-        if (!data || !data.meta) {
-            return createFallbackMovie(movie);
+        const data =
+            await response.json();
+
+
+        if (
+            !data ||
+            !data.meta
+        ) {
+
+            return createFallbackMovie(
+                movie
+            );
+
         }
 
-        const meta = data.meta;
+
+        const meta =
+            data.meta;
+
 
         const result = {
 
             ...movie,
-
-            id: movie.id,
 
             title:
                 meta.name ||
@@ -218,57 +291,56 @@ async function fetchMovieMetadata(movie) {
 
             description:
                 meta.description ||
-                "Movie information unavailable.",
+                "",
 
             year:
-                getMovieYear(meta, movie),
+                getYear(
+                    meta,
+                    movie
+                ),
 
             rating:
-                Number(meta.imdbRating) || 0,
+                Number(
+                    meta.imdbRating
+                ) || 0,
 
             genres:
-                Array.isArray(meta.genre)
+                Array.isArray(
+                    meta.genre
+                )
                     ? meta.genre
                     : [],
 
-            releaseInfo:
-                meta.releaseInfo ||
-                "",
-
-            runtime:
-                meta.runtime ||
-                "",
-
-            director:
-                Array.isArray(meta.director)
-                    ? meta.director
-                    : [],
-
-            cast:
-                Array.isArray(meta.cast)
-                    ? meta.cast
-                    : [],
-
             trailers:
-                Array.isArray(meta.trailers)
+                Array.isArray(
+                    meta.trailers
+                )
                     ? meta.trailers
                     : []
 
         };
 
-        metadataCache.set(movie.id, result);
+
+        metadataCache.set(
+            movie.id,
+            result
+        );
+
 
         return result;
 
-    } catch (error) {
+    }
+    catch (error) {
 
         console.warn(
-            "Cinemeta error:",
-            movie.id,
-            error
+            "Cinemeta request failed:",
+            movie.id
         );
 
-        return createFallbackMovie(movie);
+
+        return createFallbackMovie(
+            movie
+        );
 
     }
 
@@ -276,7 +348,7 @@ async function fetchMovieMetadata(movie) {
 
 
 // ============================================
-// FALLBACK MOVIE
+// FALLBACK
 // ============================================
 
 function createFallbackMovie(movie) {
@@ -293,8 +365,7 @@ function createFallbackMovie(movie) {
 
         background: "",
 
-        description:
-            "Movie information unavailable.",
+        description: "",
 
         year:
             movie.year || "",
@@ -303,19 +374,16 @@ function createFallbackMovie(movie) {
 
         genres: [],
 
-        releaseInfo: "",
-
-        runtime: "",
-
-        director: [],
-
-        cast: [],
-
         trailers: []
 
     };
 
-    metadataCache.set(movie.id, result);
+
+    metadataCache.set(
+        movie.id,
+        result
+    );
+
 
     return result;
 
@@ -323,25 +391,41 @@ function createFallbackMovie(movie) {
 
 
 // ============================================
-// GET YEAR
+// YEAR
 // ============================================
 
-function getMovieYear(meta, movie) {
+function getYear(
+    meta,
+    movie
+) {
 
     if (meta.releaseInfo) {
 
         const match =
-            String(meta.releaseInfo).match(/\d{4}/);
+            String(
+                meta.releaseInfo
+            ).match(/\d{4}/);
+
 
         if (match) {
-            return Number(match[0]);
+
+            return Number(
+                match[0]
+            );
+
         }
 
     }
 
+
     if (meta.year) {
-        return Number(meta.year);
+
+        return Number(
+            meta.year
+        );
+
     }
+
 
     return movie.year || "";
 
@@ -349,7 +433,7 @@ function getMovieYear(meta, movie) {
 
 
 // ============================================
-// RENDER EVERYTHING
+// RENDER ALL SECTIONS
 // ============================================
 
 function renderAllSections() {
@@ -360,11 +444,13 @@ function renderAllSections() {
         "bollywoodCount"
     );
 
+
     renderCategory(
         "south",
         "southGrid",
         "southCount"
     );
+
 
     renderCategory(
         "tamil",
@@ -372,11 +458,13 @@ function renderAllSections() {
         "tamilCount"
     );
 
+
     renderCategory(
         "telugu",
         "teluguGrid",
         "teluguCount"
     );
+
 
     renderCategory(
         "malayalam",
@@ -384,21 +472,28 @@ function renderAllSections() {
         "malayalamCount"
     );
 
+
     renderCategory(
         "kannada",
         "kannadaGrid",
         "kannadaCount"
     );
 
-    renderHindiMovies();
+
+    renderHindi();
+
 
     renderTrending();
 
+
     renderFeatured();
+
 
     renderNewMovies();
 
+
     renderAllMovies();
+
 
     renderGenres();
 
@@ -406,7 +501,7 @@ function renderAllSections() {
 
 
 // ============================================
-// CATEGORY RENDER
+// CATEGORY
 // ============================================
 
 function renderCategory(
@@ -415,26 +510,42 @@ function renderCategory(
     countId
 ) {
 
-    const grid = $(gridId);
-    const count = $(countId);
+    const grid =
+        $(gridId);
+
 
     if (!grid) {
         return;
     }
 
+
     const movies =
         loadedMovies.filter(
-            movie => movie.category === category
+            movie =>
+                movie.category === category
         );
 
+
+    const count =
+        $(countId);
+
+
     if (count) {
-        count.textContent = movies.length;
+
+        count.textContent =
+            movies.length;
+
     }
+
 
     grid.innerHTML = "";
 
+
     movies
-        .slice(0, MOVIES_PER_SECTION)
+        .slice(
+            0,
+            INITIAL_MOVIES
+        )
         .forEach(movie => {
 
             grid.appendChild(
@@ -447,35 +558,48 @@ function renderCategory(
 
 
 // ============================================
-// HINDI MOVIES
+// HINDI
 // ============================================
 
-function renderHindiMovies() {
+function renderHindi() {
 
-    const grid = $("hindiGrid");
-    const count = $("hindiCount");
+    const grid =
+        $("hindiGrid");
+
 
     if (!grid) {
         return;
     }
 
-    const movies = loadedMovies.filter(movie => {
 
-        return (
-            movie.category === "bollywood" ||
-            movie.title.toLowerCase().includes("hindi")
+    const movies =
+        loadedMovies.filter(
+            movie =>
+                movie.category ===
+                "bollywood"
         );
 
-    });
+
+    const count =
+        $("hindiCount");
+
 
     if (count) {
-        count.textContent = movies.length;
+
+        count.textContent =
+            movies.length;
+
     }
+
 
     grid.innerHTML = "";
 
+
     movies
-        .slice(0, MOVIES_PER_SECTION)
+        .slice(
+            0,
+            INITIAL_MOVIES
+        )
         .forEach(movie => {
 
             grid.appendChild(
@@ -493,28 +617,44 @@ function renderHindiMovies() {
 
 function renderTrending() {
 
-    const grid = $("trendingGrid");
-    const count = $("trendingCount");
+    const grid =
+        $("trendingGrid");
+
 
     if (!grid) {
         return;
     }
 
-    const movies = [...loadedMovies]
-        .sort(
-            (a, b) =>
-                (b.rating || 0) -
-                (a.rating || 0)
-        );
+
+    const movies =
+        [...loadedMovies]
+            .sort(
+                (a, b) =>
+                    (b.rating || 0) -
+                    (a.rating || 0)
+            );
+
+
+    const count =
+        $("trendingCount");
+
 
     if (count) {
-        count.textContent = movies.length;
+
+        count.textContent =
+            movies.length;
+
     }
+
 
     grid.innerHTML = "";
 
+
     movies
-        .slice(0, MOVIES_PER_SECTION)
+        .slice(
+            0,
+            INITIAL_MOVIES
+        )
         .forEach(movie => {
 
             grid.appendChild(
@@ -527,33 +667,49 @@ function renderTrending() {
 
 
 // ============================================
-// FEATURED / TOP RATED
+// FEATURED
 // ============================================
 
 function renderFeatured() {
 
-    const grid = $("featuredGrid");
-    const count = $("featuredCount");
+    const grid =
+        $("featuredGrid");
+
 
     if (!grid) {
         return;
     }
 
-    const movies = [...loadedMovies]
-        .sort(
-            (a, b) =>
-                (b.rating || 0) -
-                (a.rating || 0)
-        );
+
+    const movies =
+        [...loadedMovies]
+            .sort(
+                (a, b) =>
+                    (b.rating || 0) -
+                    (a.rating || 0)
+            );
+
+
+    const count =
+        $("featuredCount");
+
 
     if (count) {
-        count.textContent = movies.length;
+
+        count.textContent =
+            movies.length;
+
     }
+
 
     grid.innerHTML = "";
 
+
     movies
-        .slice(0, MOVIES_PER_SECTION)
+        .slice(
+            0,
+            INITIAL_MOVIES
+        )
         .forEach(movie => {
 
             grid.appendChild(
@@ -571,28 +727,44 @@ function renderFeatured() {
 
 function renderNewMovies() {
 
-    const grid = $("newGrid");
-    const count = $("newCount");
+    const grid =
+        $("newGrid");
+
 
     if (!grid) {
         return;
     }
 
-    const movies = [...loadedMovies]
-        .sort(
-            (a, b) =>
-                (b.year || 0) -
-                (a.year || 0)
-        );
+
+    const movies =
+        [...loadedMovies]
+            .sort(
+                (a, b) =>
+                    (b.year || 0) -
+                    (a.year || 0)
+            );
+
+
+    const count =
+        $("newCount");
+
 
     if (count) {
-        count.textContent = movies.length;
+
+        count.textContent =
+            movies.length;
+
     }
+
 
     grid.innerHTML = "";
 
+
     movies
-        .slice(0, MOVIES_PER_SECTION)
+        .slice(
+            0,
+            INITIAL_MOVIES
+        )
         .forEach(movie => {
 
             grid.appendChild(
@@ -610,28 +782,35 @@ function renderNewMovies() {
 
 function renderAllMovies() {
 
-    const grid = $("allGrid");
-    const count = $("allCount");
+    const grid =
+        $("allGrid");
+
 
     if (!grid) {
         return;
     }
 
-    const movies = [...loadedMovies]
-        .sort(
-            (a, b) =>
-                (b.year || 0) -
-                (a.year || 0)
-        );
+
+    const count =
+        $("allCount");
+
 
     if (count) {
-        count.textContent = movies.length;
+
+        count.textContent =
+            allMovies.length;
+
     }
+
 
     grid.innerHTML = "";
 
-    movies
-        .slice(0, 48)
+
+    loadedMovies
+        .slice(
+            0,
+            48
+        )
         .forEach(movie => {
 
             grid.appendChild(
@@ -651,100 +830,134 @@ function renderGenres() {
 
     const genres = {
 
-        "Action": [
-            "actionGrid",
-            "actionCount"
-        ],
+        "Action":
+            [
+                "actionGrid",
+                "actionCount"
+            ],
 
-        "Comedy": [
-            "comedyGrid",
-            "comedyCount"
-        ],
+        "Comedy":
+            [
+                "comedyGrid",
+                "comedyCount"
+            ],
 
-        "Romance": [
-            "romanceGrid",
-            "romanceCount"
-        ],
+        "Romance":
+            [
+                "romanceGrid",
+                "romanceCount"
+            ],
 
-        "Thriller": [
-            "thrillerGrid",
-            "thrillerCount"
-        ],
+        "Thriller":
+            [
+                "thrillerGrid",
+                "thrillerCount"
+            ],
 
-        "Horror": [
-            "horrorGrid",
-            "horrorCount"
-        ],
+        "Horror":
+            [
+                "horrorGrid",
+                "horrorCount"
+            ],
 
-        "Drama": [
-            "dramaGrid",
-            "dramaCount"
-        ],
+        "Drama":
+            [
+                "dramaGrid",
+                "dramaCount"
+            ],
 
-        "Sci-Fi": [
-            "sci-fiGrid",
-            "sci-fiCount"
-        ],
+        "Sci-Fi":
+            [
+                "sci-fiGrid",
+                "sci-fiCount"
+            ],
 
-        "Crime": [
-            "crimeGrid",
-            "crimeCount"
-        ],
+        "Crime":
+            [
+                "crimeGrid",
+                "crimeCount"
+            ],
 
-        "Fantasy": [
-            "fantasyGrid",
-            "fantasyCount"
-        ],
+        "Fantasy":
+            [
+                "fantasyGrid",
+                "fantasyCount"
+            ],
 
-        "Adventure": [
-            "adventureGrid",
-            "adventureCount"
-        ],
+        "Adventure":
+            [
+                "adventureGrid",
+                "adventureCount"
+            ],
 
-        "Animation": [
-            "animationGrid",
-            "animationCount"
-        ]
+        "Animation":
+            [
+                "animationGrid",
+                "animationCount"
+            ]
 
     };
 
 
-    Object.entries(genres).forEach(
+    Object.entries(
+        genres
+    ).forEach(
         ([genre, ids]) => {
 
-            const grid = $(ids[0]);
-            const count = $(ids[1]);
+            const grid =
+                $(ids[0]);
+
 
             if (!grid) {
                 return;
             }
 
+
             const movies =
-                loadedMovies.filter(movie =>
-                    movie.genres.some(g =>
-                        String(g)
-                            .toLowerCase()
-                            .includes(
-                                genre.toLowerCase()
-                            )
-                    )
+                loadedMovies.filter(
+                    movie =>
+                        movie.genres.some(
+                            item =>
+                                String(item)
+                                    .toLowerCase()
+                                    .includes(
+                                        genre.toLowerCase()
+                                    )
+                        )
                 );
 
+
+            const count =
+                $(ids[1]);
+
+
             if (count) {
-                count.textContent = movies.length;
+
+                count.textContent =
+                    movies.length;
+
             }
+
 
             grid.innerHTML = "";
 
+
             movies
-                .slice(0, MOVIES_PER_SECTION)
-                .forEach(movie => {
+                .slice(
+                    0,
+                    INITIAL_MOVIES
+                )
+                .forEach(
+                    movie => {
 
-                    grid.appendChild(
-                        createMovieCard(movie)
-                    );
+                        grid.appendChild(
+                            createMovieCard(
+                                movie
+                            )
+                        );
 
-                });
+                    }
+                );
 
         }
     );
@@ -753,61 +966,77 @@ function renderGenres() {
 
 
 // ============================================
-// CREATE MOVIE CARD
+// MOVIE CARD
 // ============================================
 
 function createMovieCard(movie) {
 
     const card =
-        document.createElement("article");
-
-    card.className = "movie-card";
-
-    card.tabIndex = 0;
+        document.createElement(
+            "article"
+        );
 
 
-    // ----------------------------------------
-    // Poster
-    // ----------------------------------------
+    card.className =
+        "movie-card";
+
 
     const poster =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
-    poster.className = "movie-poster";
+
+    poster.className =
+        "movie-poster";
 
 
     if (movie.poster) {
 
         const image =
-            document.createElement("img");
+            document.createElement(
+                "img"
+            );
 
-        image.src = movie.poster;
+
+        image.src =
+            movie.poster;
+
 
         image.alt =
             `${movie.title} poster`;
 
-        image.loading = "lazy";
+
+        image.loading =
+            "lazy";
+
 
         image.onerror = () => {
 
-            image.style.display = "none";
+            image.remove();
 
             poster.classList.add(
                 "poster-fallback"
             );
+
 
             poster.innerHTML =
                 `<span>${escapeHTML(movie.title)}</span>`;
 
         };
 
-        poster.appendChild(image);
 
-    } else {
+        poster.appendChild(
+            image
+        );
+
+    }
+    else {
 
         poster.classList.add(
             "poster-fallback"
         );
+
 
         poster.innerHTML =
             `<span>${escapeHTML(movie.title)}</span>`;
@@ -815,38 +1044,51 @@ function createMovieCard(movie) {
     }
 
 
-    // ----------------------------------------
-    // Info
-    // ----------------------------------------
-
     const info =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
-    info.className = "movie-info";
+
+    info.className =
+        "movie-info";
 
 
     const title =
-        document.createElement("h3");
+        document.createElement(
+            "h3"
+        );
+
 
     title.textContent =
         movie.title;
 
 
     const meta =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
-    meta.className = "movie-meta";
+
+    meta.className =
+        "movie-meta";
 
 
     if (movie.year) {
 
         const year =
-            document.createElement("span");
+            document.createElement(
+                "span"
+            );
+
 
         year.textContent =
             movie.year;
 
-        meta.appendChild(year);
+
+        meta.appendChild(
+            year
+        );
 
     }
 
@@ -854,52 +1096,47 @@ function createMovieCard(movie) {
     if (movie.rating) {
 
         const rating =
-            document.createElement("span");
+            document.createElement(
+                "span"
+            );
+
 
         rating.textContent =
             `★ ${movie.rating.toFixed(1)}`;
 
-        meta.appendChild(rating);
+
+        meta.appendChild(
+            rating
+        );
 
     }
 
 
-    info.appendChild(title);
-
-    info.appendChild(meta);
-
-
-    card.appendChild(poster);
-
-    card.appendChild(info);
+    info.appendChild(
+        title
+    );
 
 
-    // ----------------------------------------
-    // Click
-    // ----------------------------------------
+    info.appendChild(
+        meta
+    );
 
-    card.addEventListener(
-        "click",
-        () => openMovie(movie)
+
+    card.appendChild(
+        poster
+    );
+
+
+    card.appendChild(
+        info
     );
 
 
     card.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.key === "Enter" ||
-                event.key === " "
-            ) {
-
-                event.preventDefault();
-
-                openMovie(movie);
-
-            }
-
-        }
+        "click",
+        () => openMovie(
+            movie
+        )
     );
 
 
@@ -909,17 +1146,67 @@ function createMovieCard(movie) {
 
 
 // ============================================
-// OPEN MOVIE
+// OPEN TRAILER
 // ============================================
 
 function openMovie(movie) {
 
+    /*
+     * Cinemeta may provide the YouTube trailer
+     * directly.
+     */
+
+    if (
+        movie.trailers &&
+        movie.trailers.length
+    ) {
+
+        const trailer =
+            movie.trailers.find(
+                item =>
+                    item &&
+                    item.source
+            );
+
+
+        if (
+            trailer &&
+            trailer.source
+        ) {
+
+            const youtubeURL =
+                `https://www.youtube.com/watch?v=${trailer.source}`;
+
+
+            window.open(
+                youtubeURL,
+                "_blank",
+                "noopener,noreferrer"
+            );
+
+
+            return;
+
+        }
+
+    }
+
+
+    /*
+     * Fallback:
+     * Search YouTube.
+     */
+
     const query =
         `${movie.title} official trailer`;
 
+
     const youtubeURL =
         `https://www.youtube.com/results?search_query=` +
-        encodeURIComponent(query);
+        encodeURIComponent(
+            query
+        );
+
 
     window.open(
         youtubeURL,
@@ -936,32 +1223,38 @@ function openMovie(movie) {
 
 function setupSearch() {
 
-    const searchInput =
+    const input =
         $("searchInput");
 
-    const clearButton =
+
+    const clear =
         $("clearSearch");
 
-    if (!searchInput) {
+
+    if (!input) {
         return;
     }
 
 
-    searchInput.addEventListener(
+    input.addEventListener(
         "input",
         () => {
 
             const query =
-                searchInput.value
+                input.value
                     .trim()
                     .toLowerCase();
 
-            if (clearButton) {
 
-                clearButton.style.display =
-                    query ? "block" : "none";
+            if (clear) {
+
+                clear.style.display =
+                    query
+                        ? "block"
+                        : "none";
 
             }
+
 
             if (!query) {
 
@@ -971,26 +1264,27 @@ function setupSearch() {
 
             }
 
-            searchMovies(query);
+
+            searchMovies(
+                query
+            );
 
         }
     );
 
 
-    if (clearButton) {
+    if (clear) {
 
-        clearButton.addEventListener(
+        clear.addEventListener(
             "click",
             () => {
 
-                searchInput.value = "";
+                input.value = "";
 
-                clearButton.style.display =
+                clear.style.display =
                     "none";
 
                 hideSearchResults();
-
-                searchInput.focus();
 
             }
         );
@@ -1001,7 +1295,7 @@ function setupSearch() {
 
 
 // ============================================
-// SEARCH MOVIES
+// SEARCH
 // ============================================
 
 function searchMovies(query) {
@@ -1009,11 +1303,14 @@ function searchMovies(query) {
     const section =
         $("searchResultsSection");
 
+
     const grid =
         $("searchResultsGrid");
 
+
     const count =
         $("searchCount");
+
 
     const noResults =
         $("noResults");
@@ -1025,23 +1322,67 @@ function searchMovies(query) {
 
 
     const results =
-        loadedMovies.filter(movie => {
+        allMovies.filter(
+            movie => {
 
-            const title =
-                movie.title
-                    .toLowerCase();
+                const title =
+                    String(
+                        movie.title
+                    ).toLowerCase();
 
-            const genreText =
-                movie.genres
-                    .join(" ")
-                    .toLowerCase();
 
-            return (
-                title.includes(query) ||
-                genreText.includes(query)
-            );
+                return title.includes(
+                    query
+                );
 
-        });
+            }
+        );
+
+
+    /*
+     * Search results may contain movies
+     * whose metadata has not been loaded yet.
+     */
+
+    const loadedIDs =
+        new Set(
+            loadedMovies.map(
+                movie => movie.id
+            )
+        );
+
+
+    const unloaded =
+        results.filter(
+            movie =>
+                !loadedIDs.has(
+                    movie.id
+                )
+        );
+
+
+    if (unloaded.length) {
+
+        loadBatch(
+            unloaded.slice(
+                0,
+                24
+            )
+        ).then(
+            newMovies => {
+
+                loadedMovies.push(
+                    ...newMovies
+                );
+
+                searchMovies(
+                    query
+                );
+
+            }
+        );
+
+    }
 
 
     section.style.display =
@@ -1052,16 +1393,33 @@ function searchMovies(query) {
 
 
     if (count) {
+
         count.textContent =
             results.length;
+
     }
 
 
-    if (!results.length) {
+    const visible =
+        loadedMovies.filter(
+            movie =>
+                String(
+                    movie.title
+                )
+                    .toLowerCase()
+                    .includes(
+                        query
+                    )
+        );
+
+
+    if (!visible.length) {
 
         if (noResults) {
+
             noResults.style.display =
                 "block";
+
         }
 
         return;
@@ -1070,26 +1428,29 @@ function searchMovies(query) {
 
 
     if (noResults) {
+
         noResults.style.display =
             "none";
+
     }
 
 
-    results
-        .slice(0, 60)
-        .forEach(movie => {
+    visible
+        .slice(
+            0,
+            60
+        )
+        .forEach(
+            movie => {
 
-            grid.appendChild(
-                createMovieCard(movie)
-            );
+                grid.appendChild(
+                    createMovieCard(
+                        movie
+                    )
+                );
 
-        });
-
-
-    section.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-    });
+            }
+        );
 
 }
 
@@ -1103,17 +1464,24 @@ function hideSearchResults() {
     const section =
         $("searchResultsSection");
 
+
     const noResults =
         $("noResults");
 
+
     if (section) {
+
         section.style.display =
             "none";
+
     }
 
+
     if (noResults) {
+
         noResults.style.display =
             "none";
+
     }
 
 }
@@ -1125,45 +1493,45 @@ function hideSearchResults() {
 
 function setupNavigation() {
 
-    const links =
-        document.querySelectorAll(
+    document
+        .querySelectorAll(
             "[data-section]"
-        );
+        )
+        .forEach(
+            link => {
+
+                link.addEventListener(
+                    "click",
+                    event => {
+
+                        const target =
+                            link.getAttribute(
+                                "data-section"
+                            );
 
 
-    links.forEach(link => {
+                        const section =
+                            $(target);
 
-        link.addEventListener(
-            "click",
-            event => {
 
-                const target =
-                    link.getAttribute(
-                        "data-section"
-                    );
+                        if (!section) {
+                            return;
+                        }
 
-                if (!target) {
-                    return;
-                }
 
-                const section =
-                    $(target);
+                        event.preventDefault();
 
-                if (!section) {
-                    return;
-                }
 
-                event.preventDefault();
+                        section.scrollIntoView({
+                            behavior:
+                                "smooth"
+                        });
 
-                section.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
-                });
+                    }
+                );
 
             }
         );
-
-    });
 
 }
 
@@ -1174,12 +1542,16 @@ function setupNavigation() {
 
 function updateYear() {
 
-    const year =
+    const element =
         $("currentYear");
 
-    if (year) {
-        year.textContent =
-            new Date().getFullYear();
+
+    if (element) {
+
+        element.textContent =
+            new Date()
+                .getFullYear();
+
     }
 
 }
@@ -1189,51 +1561,23 @@ function updateYear() {
 // LOADING
 // ============================================
 
-function showLoading(show) {
-
-    const loading =
-        $("loading");
-
-    if (!loading) {
-        return;
-    }
-
-    loading.style.display =
-        show ? "flex" : "none";
-
-}
-
-
-function updateLoadingProgress(
-    current,
-    total
+function showLoading(
+    visible
 ) {
 
     const loading =
         $("loading");
 
+
     if (!loading) {
         return;
     }
 
-    const percentage =
-        Math.round(
-            (current / total) * 100
-        );
 
-
-    const text =
-        loading.querySelector(
-            "p"
-        );
-
-
-    if (text) {
-
-        text.textContent =
-            `Loading movies... ${percentage}%`;
-
-    }
+    loading.style.display =
+        visible
+            ? "flex"
+            : "none";
 
 }
 
@@ -1242,71 +1586,69 @@ function updateLoadingProgress(
 // ERROR
 // ============================================
 
-function showError(message) {
+function showError(
+    message
+) {
 
     const box =
         $("errorBox");
+
 
     const text =
         $("errorText");
 
 
     if (text) {
+
         text.textContent =
             message;
+
     }
 
+
     if (box) {
+
         box.style.display =
             "block";
-    }
 
-}
-
-
-function hideError() {
-
-    const box =
-        $("errorBox");
-
-    if (box) {
-        box.style.display =
-            "none";
     }
 
 }
 
 
 // ============================================
-// RETRY
+// ESCAPE HTML
 // ============================================
 
-const retryButton =
-    $("retryButton");
-
-if (retryButton) {
-
-    retryButton.addEventListener(
-        "click",
-        () => {
-            window.location.reload();
-        }
-    );
-
-}
-
-
-// ============================================
-// HTML ESCAPE
-// ============================================
-
-function escapeHTML(value) {
+function escapeHTML(
+    value
+) {
 
     return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 
 }
